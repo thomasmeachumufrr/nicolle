@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Nicolle Dias Simulator - Lucky Scope V9 (Falante)</title>
+    <title>Nicolle Dias Simulator - Lucky Scope V10</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; touch-action: none; background: #000; }
         
@@ -163,7 +163,7 @@
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x020202);
-            scene.fog = new THREE.Fog(0x020202, 10, 120); // Nevoeiro um pouco mais longe
+            scene.fog = new THREE.Fog(0x020202, 10, 120);
 
             camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
 
@@ -189,7 +189,7 @@
 
             createDiscoLights();
 
-            // Cenário (Novo Piso)
+            // Cenário
             createEnvironment();
             createSignage(); 
             createDJBooth(); 
@@ -208,8 +208,8 @@
             for(let i=0; i<8; i++) {
                 let randomImg = NPC_GALLERY[Math.floor(Math.random() * NPC_GALLERY.length)];
                 let npc = createSprite(randomImg, -14, 2, -8 - (i * 2.5), 4);
-                npc.userData.isTalking = false; // Estado para fala
-                npcs.push(npc); // Adiciona fila na lista de NPCs que podem falar
+                npc.userData.isTalking = false; 
+                npcs.push(npc); 
                 scene.add(npc);
             }
 
@@ -245,35 +245,32 @@
 
             initJoystick();
             initCameraControls();
-            startRandomSpeechLoop(); // Iniciar sistema de falas
+            startRandomSpeechLoop(); 
             animate();
         }
 
-        // --- SISTEMA DE BALÕES DE FALA ---
+        // --- SISTEMA DE BALÕES DE FALA (AJUSTADO) ---
         function startRandomSpeechLoop() {
-            // Tenta fazer alguém falar a cada 2 segundos
+            // Frequência reduzida: agora tenta falar a cada 8 segundos (8000ms)
             setInterval(() => {
-                // Sorteia um NPC da lista
                 if (npcs.length === 0) return;
                 let speaker = npcs[Math.floor(Math.random() * npcs.length)];
                 
-                // Se ele já não estiver falando
                 if (speaker && !speaker.userData.isTalking) {
                     let phrase = PHRASES[Math.floor(Math.random() * PHRASES.length)];
                     speak(speaker, phrase);
                 }
-            }, 2000);
+            }, 8000); 
         }
 
         function speak(npc, text) {
             npc.userData.isTalking = true;
 
-            // Criar textura de texto usando Canvas 2D
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             canvas.width = 256; canvas.height = 128;
             
-            // Fundo do balão (Retângulo branco arredondado simples)
+            // Desenho do balão
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(10, 10, 236, 108);
             ctx.strokeStyle = '#000000'; ctx.lineWidth = 4;
@@ -284,7 +281,7 @@
             ctx.fillStyle = '#000000';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            // Quebra de linha simples (separa por espaço e desenha em duas linhas se precisar)
+            
             const words = text.split(' ');
             let line1 = text; let line2 = "";
             if(words.length > 3) {
@@ -304,13 +301,12 @@
             const bubbleMat = new THREE.SpriteMaterial({ map: texture });
             const bubble = new THREE.Sprite(bubbleMat);
             
-            // Posicionar acima da cabeça do NPC
+            // TAMANHO REDUZIDO (Era 4, 2, 1 -> Agora 1.5, 0.75, 1)
             bubble.position.set(0, 2.5, 0); 
-            bubble.scale.set(4, 2, 1); // Tamanho do balão
+            bubble.scale.set(1.5, 0.75, 1); 
             
-            npc.add(bubble); // Adiciona o balão como "filho" do NPC
+            npc.add(bubble); 
 
-            // Remover após 4 segundos
             setTimeout(() => {
                 npc.remove(bubble);
                 npc.userData.isTalking = false;
@@ -355,7 +351,7 @@
             joystickManager.on('end', () => { moveForward = 0; moveSide = 0; });
         }
 
-        // ... [CENÁRIO ATUALIZADO] ...
+        // --- CENÁRIO ---
         function createDiscoLights() {
             const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00];
             for(let i=0; i<4; i++) {
@@ -414,36 +410,31 @@
             sign.position.set(-11.5, 10, 0); sign.rotation.y = -Math.PI / 2; scene.add(sign);
         }
 
-        // --- FUNÇÃO CREATE ENVIRONMENT ATUALIZADA (PISOS) ---
         function createEnvironment() {
-            // 1. Asfalto (Escuro, cobre tudo lá fora)
             const asphalt = new THREE.Mesh(
                 new THREE.PlaneGeometry(200, 200), 
                 new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 })
             );
             asphalt.rotation.x = -Math.PI/2;
-            asphalt.position.y = -0.05; // Ligeiramente abaixo da calçada
+            asphalt.position.y = -0.05; 
             scene.add(asphalt);
 
-            // 2. Calçada (Concreto mais claro, área da fila)
             const sidewalk = new THREE.Mesh(
                 new THREE.PlaneGeometry(30, 60), 
                 new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.6 })
             );
             sidewalk.rotation.x = -Math.PI/2;
-            sidewalk.position.set(-20, 0, 0); // Posicionada na frente da entrada
+            sidewalk.position.set(-20, 0, 0); 
             scene.add(sidewalk);
 
-            // 3. Piso Interno (Pista de dança, mais escuro e reflexivo)
             const clubFloor = new THREE.Mesh(
                 new THREE.PlaneGeometry(100, 100), 
                 new THREE.MeshStandardMaterial({ color: 0x220022, roughness: 0.1, metalness: 0.2 })
             );
             clubFloor.rotation.x = -Math.PI/2;
-            clubFloor.position.set(40, 0.01, 0); // Ligeiramente acima do asfalto
+            clubFloor.position.set(40, 0.01, 0); 
             scene.add(clubFloor);
 
-            // Paredes
             const wallMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
             const wallEntry = new THREE.Mesh(new THREE.BoxGeometry(2, 12, 100), wallMat); wallEntry.position.set(-10, 6, 0); scene.add(wallEntry);
             const wallBack = new THREE.Mesh(new THREE.BoxGeometry(2, 12, 100), wallMat); wallBack.position.set(75, 6, 0); scene.add(wallBack);
