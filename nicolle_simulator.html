@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nicolle Dias Simulator - Lucky Scope</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111; font-family: 'Arial', sans-serif; color: white; }
+        canvas { display: block; }
+        #ui-layer { position: absolute; top: 10px; left: 10px; pointer-events: none; }
+        #mission-box { 
+            background: rgba(0, 0, 0, 0.8); 
+            padding: 15px; 
+            border: 2px solid #ff00de; 
+            border-radius: 10px; 
+            max-width: 300px;
+            margin-bottom: 10px;
+        }
+        h1 { margin: 0; font-size: 18px; color: #ff00de; text-transform: uppercase; }
+        p { margin: 5px 0 0; font-size: 14px; }
+        #action-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: #ff00de;
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            font-size: 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 0 15px #ff00de;
+            display: none; /* Só aparece quando necessário */
+            pointer-events: auto;
+            font-weight: bold;
+        }
+        #action-btn:active { transform: scale(0.95); }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div id="mission-box">
+            <h1 id="mission-title">Missão 1</h1>
+            <p id="mission-desc">Fure a fila e entre na Lucky Scope.</p>
+        </div>
+    </div>
+
+    <button id="action-btn" onclick="triggerAction()">AÇÃO</button>
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const actionBtn = document.getElementById('action-btn');
+    const mTitle = document.getElementById('mission-title');
+    const mDesc = document.getElementById('mission-desc');
+
+    // Configuração
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Variáveis de Estado
+    let currentMission = 1;
+    let fightsCount = 0;
+    let hasDrink = false;
+    let gameEnded = false;
+    let actionTarget = null; // Quem está na mira da Nicolle
+
+    // Nicolle
+    const player = {
+        x: 50,
+        y: canvas.height / 2,
+        size: 40,
+        emoji: '👩🏻', // Nicolle
+        speed: 5
+    };
+
+    // Entidades
+    let queuePeople = [];
+    let clubWomen = [];
+    let clubMen = [];
+    let keyla = { x: 0, y: 0, active: false };
+    let japa = { x: 0, y: 0, active: false };
+    let rivalGirl = { x: 0, y: 0, active: false };
+
+    // Configuração do Mapa
+    const entranceX = 300; // Onde termina a fila e começa a balada
+
+    // Inputs
+    const keys = {};
+    window.addEventListener('keydown', e => keys[e.key] = true);
+    window.addEventListener('keyup', e => keys[e.key] = false);
+
+    // Inicialização
+    function init() {
+        // Criar Fila (Pessoas aleatórias)
+        for(let i=0; i<8; i++) {
+            queuePeople.push({
+                x: 100 + (i * 20) + Math.random()*10,
+                y: (canvas.height/2) - 30 + Math.random()*60,
+                emoji: ['😐','😠','🙄'][Math.floor(Math.random()*3)]
+            });
+        }
+
+        // Criar Mulheres na Balada (Para brigar)
+        for(let i=0; i<10; i++) {
+            clubWomen.push({
+                x: entranceX + 100 + Math.random() * (canvas.width - entranceX - 150),
+                y: 100 + Math.random() * (canvas.height - 200),
+                emoji: '💃',
+                beaten: false
+            });
+        }
+
+        // Criar Homens (Para o drink)
+        for(let i=0; i<8; i++) {
+            clubMen.push({
+                x: entranceX + 100 + Math.random() * (canvas.width - entranceX - 150),
+                y: 100 + Math.random() * (canvas.height - 200),
+                emoji: '🕺',
+                hasDrink: Math.random() > 0.4 // 60% de chance de ter drink
+            });
+        }
+
+        // Posicionar Keyla (Canto superior direito)
+        keyla = { x: canvas.width - 80, y: 80, active: true, soaked: false };
+
+        // Posicionar Japa e Rival (Canto inferior direito)
+        japa = { x: canvas.width - 100, y: canvas.height - 100, active: true };
+        rivalGirl = { x: canvas.width - 130, y: canvas.height - 100, active: true };
+    }
+
+    // Lógica Principal
+    function update() {
+        if (gameEnded) return;
+
+        // Movimento (WASD ou Setas)
+        if (keys['ArrowUp'] || keys['w']) player.y -= player.speed;
+        if (keys['ArrowDown'] || keys['s']) player.y += player.speed;
+        if (keys['ArrowLeft'] || keys['a']) player.x -= player.speed;
+        if (keys['ArrowRight'] || keys['d']) player.x += player.speed;
+
+        // Limites da tela
+        if(player.x < 0) player.x = 0;
+        if(player.y < 0) player.y = 0;
+        if(player.x > canvas.width) player.x = canvas.width;
+        if(player.y > canvas.height) player.y = canvas.height;
+
+        checkMissionStatus();
+        checkInteractions();
+    }
+
+    // Verifica progresso das missões
+    function checkMissionStatus() {
+        if (currentMission === 1) {
+            if (player.x > entranceX + 50) {
+                currentMission = 2;
+                updateMissionUI("Arranjar Brigas", "Puxe o cabelo de 3 mulheres na pista! (" + fightsCount + "/3)");
+            }
+        }
+        else if (currentMission === 2) {
+            if (fightsCount >= 3) {
+                currentMission = 3;
+                updateMissionUI("Conseguir um Drink", "Ache um homem com copo na mão e pegue a bebida.");
+            }
+        }
+        // As outras transições acontecem via Ação do Botão
+    }
+
+    // Verifica proximidade para ativar botões
+    function checkInteractions() {
+        let nearby = false;
+        let btnText = "";
+        actionTarget = null;
+
+        // Lógica Missão 2: Brigar
+        if (currentMission === 2) {
+            clubWomen.forEach(w => {
+                if (!w.beaten && getDist(player, w) < 60) {
+                    nearby = true;
+                    btnText = "BRIGAR 👊";
+                    actionTarget = w;
+                }
+            });
+        }
+        // Lógica Missão 3: Drink
+        else if (currentMission === 3 && !hasDrink) {
+            clubMen.forEach(m => {
+                if (m.hasDrink && getDist(player, m) < 60) {
+                    nearby = true;
+                    btnText = "PEGAR DRINK 🍸";
+                    actionTarget = m;
+                }
+            });
+        }
+        // Lógica Missão 4: Keyla
+        else if (currentMission === 4) {
+            if (getDist(player, keyla) < 80) {
+                nearby = true;
+                btnText = "DERRUBAR DRINK 💦";
+                actionTarget = keyla;
+            }
+        }
+        // Lógica Missão 5: Japa
+        else if (currentMission === 5) {
+            if (getDist(player, japa) < 80) {
+                nearby = true;
+                btnText = "REIVINDICAR O JAPONÊS 💋";
+                actionTarget = japa;
+            }
+        }
+
+        // Atualizar Botão
+        if (nearby) {
+            actionBtn.style.display = 'block';
+            actionBtn.innerText = btnText;
+            // Atalho Teclado (Espaço)
+            if (keys[' ']) {
+                triggerAction();
+                keys[' '] = false; // prevenir spam
+            }
+        } else {
+            actionBtn.style.display = 'none';
+        }
+    }
+
+    // Ação do Botão
+    window.triggerAction = function() {
+        if (!actionTarget) return;
+
+        if (currentMission === 2) {
+            // Animação simples de briga
+            actionTarget.beaten = true;
+            actionTarget.emoji = '🤕'; // Fica machucada
+            fightsCount++;
+            updateMissionUI("Arranjar Brigas", "Puxe o cabelo de 3 mulheres na pista! (" + fightsCount + "/3)");
+            alert("VOCÊ PUXOU O CABELO DELA!");
+        }
+        else if (currentMission === 3) {
+            hasDrink = true;
+            actionTarget.hasDrink = false; // Ele perde o drink
+            player.emoji = '👩🏻🍸'; // Nicolle ganha drink
+            currentMission = 4;
+            updateMissionUI("Derrubar Drink na Keyla", "Ache a Keyla (cara de brava) no canto e molhe ela!");
+            alert("VOCÊ PEGOU O DRINK!");
+        }
+        else if (currentMission === 4) {
+            keyla.soaked = true;
+            keyla.emoji = '🤬'; // Keyla fica furiosa
+            player.emoji = '👩🏻'; // Nicolle perde o copo
+            currentMission = 5;
+            updateMissionUI("Conquistar o Japonês", "Vá até o Japa moreno e empurre a rival!");
+            alert("KEYLA ESTÁ MOLHADA E FURIOSA!");
+        }
+        else if (currentMission === 5) {
+            rivalGirl.x += 200; // Empurra a rival para longe
+            rivalGirl.emoji = '😭';
+            player.x = japa.x - 20; // Cola no Japa
+            japa.emoji = '😍';
+            player.emoji = '👩🏻❤️';
+            gameEnded = true;
+            actionBtn.style.display = 'none';
+            mTitle.innerText = "FIM DE JOGO";
+            mDesc.innerText = "Parabéns Nicolle! O Japa é seu!";
+            setTimeout(() => alert("NICOLLE DIAS SIMULATOR FINALIZADO COM SUCESSO!"), 500);
+        }
+    }
+
+    function updateMissionUI(title, desc) {
+        mTitle.innerText = title;
+        mDesc.innerText = desc;
+    }
+
+    function getDist(o1, o2) {
+        return Math.sqrt((o1.x - o2.x)**2 + (o1.y - o2.y)**2);
+    }
+
+    // Desenho
+    function draw() {
+        // Limpar tela
+        ctx.fillStyle = "#111"; // Fundo da balada
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Desenhar Chão da Balada vs Fila
+        ctx.fillStyle = "#220022"; // Cor da pista
+        ctx.fillRect(entranceX, 0, canvas.width - entranceX, canvas.height);
+        
+        // Linha divisória (Porta)
+        ctx.beginPath();
+        ctx.moveTo(entranceX, 0);
+        ctx.lineTo(entranceX, canvas.height);
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 5;
+        ctx.stroke();
+
+        // Texto no chão
+        ctx.fillStyle = "#ffffff33";
+        ctx.font = "30px Arial";
+        ctx.fillText("FILA", 50, 50);
+        ctx.fillText("LUCKY SCOPE (PISTA)", entranceX + 20, 50);
+
+        // Desenhar Fila
+        ctx.font = "30px Arial";
+        queuePeople.forEach(p => ctx.fillText(p.emoji, p.x, p.y));
+
+        // Desenhar Mulheres Balada
+        clubWomen.forEach(w => ctx.fillText(w.emoji, w.x, w.y));
+
+        // Desenhar Homens
+        clubMen.forEach(m => {
+            let icon = m.emoji;
+            if (m.hasDrink) icon += '🥃';
+            ctx.fillText(icon, m.x, m.y);
+        });
+
+        // Desenhar Keyla
+        if (currentMission >= 3) {
+            ctx.fillText("Keyla", keyla.x - 10, keyla.y - 30);
+            ctx.fillText(keyla.soaked ? '🤬' : '👿', keyla.x, keyla.y);
+        }
+
+        // Desenhar Japa e Rival
+        ctx.fillText("Japa", japa.x, japa.y - 30);
+        ctx.fillText(japa.emoji, japa.x, japa.y); // Japa moreno
+        ctx.fillText(rivalGirl.emoji, rivalGirl.x, rivalGirl.y); // Rival
+
+        // Desenhar Player (Nicolle)
+        ctx.font = "40px Arial";
+        ctx.fillText(player.emoji, player.x, player.y);
+
+        requestAnimationFrame(() => {
+            update();
+            draw();
+        });
+    }
+
+    // Start
+    init();
+    draw();
+
+</script>
+</body>
+</html>
