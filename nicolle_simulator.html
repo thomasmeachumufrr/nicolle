@@ -104,39 +104,20 @@
         // 1. Personagens Específicos
         const MAIN_CHARS = {
             nicolle: 'nicolle.png', 
-            marcao: 'jeffao.png', // Coloque a foto do Marcão aqui
-            hostess: 'hostess.png', // Mulher da porta
+            marcao: 'jeffao.png', 
+            hostess: 'hostess.png', 
             keyla: 'https://cdn-icons-png.flaticon.com/512/4140/4140073.png',
             japa: 'japa.png',
             rival: 'https://cdn-icons-png.flaticon.com/512/4140/4140051.png',
             drink_icon: 'drink.png'
         };
 
-        // 2. Galeria de NPCs (Pode colocar 30, 50, 100 links aqui)
-        // O jogo vai pegar aleatoriamente daqui para criar a multidão
+        // 2. Galeria de NPCs
         const NPC_GALLERY = [
-            'npc1.png',
-'npc2.png',
-'npc3.png',
-'npc4.png',
-'npc5.png',
-'npc6.png',
-'npc7.png',
-'npc8.png',
-'npc9.png',
-'npc10.png',
-'npc11.png',
-'npc12.png',
-'npc13.png',
-'npc14.png',
-'npc15.png',
-'npc16.png',
-'npc17.png',
-'npc18.png',
-'npc19.png',
-'npc20.png',
-'npc21.png',
-
+            'npc1.png', 'npc2.png', 'npc3.png', 'npc4.png', 'npc5.png',
+            'npc6.png', 'npc7.png', 'npc8.png', 'npc9.png', 'npc10.png',
+            'npc11.png', 'npc12.png', 'npc13.png', 'npc14.png', 'npc15.png',
+            'npc16.png', 'npc17.png', 'npc18.png', 'npc19.png', 'npc20.png', 'npc21.png',
         ];
 
         // ==========================================================
@@ -163,7 +144,7 @@
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x111111);
-            scene.fog = new THREE.Fog(0x111111, 10, 70);
+            scene.fog = new THREE.Fog(0x111111, 10, 80);
 
             camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
             camera.position.set(0, 8, 15);
@@ -172,8 +153,8 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // Luzes
-            scene.add(new THREE.AmbientLight(0x888888));
+            // Luzes (Aumentei a luz ambiente para ver o chão melhor)
+            scene.add(new THREE.AmbientLight(0xcccccc)); 
             const pl = new THREE.PointLight(0xff00de, 1.5, 40);
             pl.position.set(10, 15, 0);
             scene.add(pl);
@@ -186,18 +167,19 @@
             nicolle = createSprite(MAIN_CHARS.nicolle, -40, 2, 0, 5);
             scene.add(nicolle);
 
-            // Marcão (Segurança) - Fica perto da porta
+            // Marcão (Segurança)
             marcao = createSprite(MAIN_CHARS.marcao, -12, 2.5, -6, 6);
             scene.add(marcao);
 
-            // Hostess (Recepção) - Bem na entrada
+            // Hostess (Recepção)
             hostess = createSprite(MAIN_CHARS.hostess, -8, 2, 6, 5);
             scene.add(hostess);
 
-            // NPCs da Fila (Usa galeria aleatória)
+            // NPCs da Fila (AGORA ORGANIZADA)
             for(let i=0; i<10; i++) {
                 let randomImg = NPC_GALLERY[Math.floor(Math.random() * NPC_GALLERY.length)];
-                let npc = createSprite(randomImg, -20 - Math.random()*15, 2, -20 + i*5, 4);
+                // X fixo em -15 (lado de fora), Z variando para formar fila
+                let npc = createSprite(randomImg, -15 - (Math.random()*1), 2, -15 - (i * 2.5), 4);
                 npc.material.color.setHex(0xaaaaaa); 
                 scene.add(npc);
             }
@@ -205,7 +187,7 @@
             // NPCs da Balada
             for(let i=0; i<20; i++) {
                 let randomImg = NPC_GALLERY[Math.floor(Math.random() * NPC_GALLERY.length)];
-                let isMan = Math.random() > 0.5; // Simplificação visual
+                let isMan = Math.random() > 0.5; 
                 
                 // Distribui na pista
                 let npc = createSprite(randomImg, 15 + Math.random()*35, 2, -35 + Math.random()*70, 4.5);
@@ -217,7 +199,8 @@
                     let hasDrink = Math.random() > 0.4;
                     npc.userData = { type: hasDrink ? 'man_drink' : 'man', interacted: false };
                     if(hasDrink) {
-                        let cup = createSprite(MAIN_CHARS.drink_icon, 1, 0, 0, 1.5);
+                        // DRINK MENOR (Escala 0.4)
+                        let cup = createSprite(MAIN_CHARS.drink_icon, 0.6, -0.5, 0.1, 0.4); 
                         npc.add(cup);
                     }
                 }
@@ -245,24 +228,24 @@
             animate();
         }
 
-        // --- FUNÇÃO DA PLACA "LUCKY SCOPE" ---
+        // --- FUNÇÃO DA PLACA "LUCKY SCOPE" (CORRIGIDA) ---
         function createSignage() {
             const canvas = document.createElement('canvas');
             canvas.width = 512; canvas.height = 256;
             const ctx = canvas.getContext('2d');
             
-            // Fundo Preto
+            // Fundo
             ctx.fillStyle = '#110011';
             ctx.fillRect(0,0,512,256);
             
             // Borda Neon
             ctx.strokeStyle = '#ff00de';
-            ctx.lineWidth = 10;
-            ctx.strokeRect(5,5,502,246);
+            ctx.lineWidth = 15;
+            ctx.strokeRect(10,10,492,236);
 
             // Texto Principal
             ctx.font = 'bold 60px Arial';
-            ctx.fillStyle = '#ff00de'; // Rosa Neon
+            ctx.fillStyle = '#ff00de'; 
             ctx.textAlign = 'center';
             ctx.fillText("LUCKY SCOPE", 256, 120);
 
@@ -272,20 +255,25 @@
             ctx.fillText("Nosso After", 256, 180);
 
             const texture = new THREE.CanvasTexture(canvas);
-            const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-            const sign = new THREE.Mesh(new THREE.PlaneGeometry(10, 5), material);
+            // DoubleSide garante que dê pra ver de qualquer lado
+            const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide }); 
+            const sign = new THREE.Mesh(new THREE.PlaneGeometry(12, 6), material);
             
-            // Posicionar acima da entrada
-            sign.position.set(-10, 8, 0); 
-            sign.rotation.y = Math.PI / 2; // Virado para a rua
+            // Posicionar FORA da parede e virado para a rua
+            sign.position.set(-11.5, 9, 0); 
+            sign.rotation.y = -Math.PI / 2; // Rotação corrigida para encarar a Nicolle
             scene.add(sign);
         }
 
         function createEnvironment() {
-            // Chão
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 100), new THREE.MeshStandardMaterial({ color: 0x220022 }));
+            // Chão MAIS CLARO
+            const floor = new THREE.Mesh(
+                new THREE.PlaneGeometry(120, 100), 
+                new THREE.MeshStandardMaterial({ color: 0x662266 }) // Roxo mais claro
+            );
             floor.rotation.x = -Math.PI/2;
             scene.add(floor);
+
             // Parede
             const wall = new THREE.Mesh(new THREE.BoxGeometry(2, 12, 100), new THREE.MeshStandardMaterial({ color: 0x000000 }));
             wall.position.set(-10, 6, 0);
@@ -322,22 +310,18 @@
             joystickManager.on('end', () => { moveForward = 0; moveSide = 0; });
         }
 
-        // --- SISTEMA DE ENTRADA (HOSTESS) ---
+        // --- SISTEMA DE ENTRADA ---
         window.escolherEntrada = function(tipo) {
             dialogBox.style.display = 'none';
             
             if (tipo === 'qrcode') {
-                // Efeito do Pix
                 pixAlert.style.display = 'block';
                 setTimeout(() => { pixAlert.style.display = 'none'; }, 3000);
             }
             
-            // Liberar Entrada
             entryGranted = true;
             mission = 2;
             updateUI("MISSÃO 2: AS BRIGAS", "Puxe o cabelo de 3 mulheres na pista! (0/3)");
-            
-            // Mover Nicolle um pouco para dentro para não travar o dialogo dnv
             nicolle.position.x = -4; 
         };
 
@@ -346,15 +330,14 @@
             nicolle.position.x += moveSide * 0.2;
             nicolle.position.z += moveForward * 0.2;
 
-            // BLOQUEIO DA PORTA (Hostess)
-            // Se tentar passar de X = -8 sem permissão, mostra dialogo e empurra de volta
+            // BLOQUEIO DA PORTA
             if (!entryGranted && nicolle.position.x > -8) {
-                nicolle.position.x = -8.2; // Barra física
-                dialogBox.style.display = 'block'; // Abre dialogo
-                moveForward = 0; moveSide = 0; // Para movimento
+                nicolle.position.x = -8.2; 
+                dialogBox.style.display = 'block'; 
+                moveForward = 0; moveSide = 0; 
             }
 
-            // Missões dentro da balada
+            // Missões
             btnAction.style.display = 'none';
             nearbyTarget = null;
 
@@ -377,12 +360,12 @@
         window.executeAction = function() {
             if(!nearbyTarget) return;
             
-            nicolle.position.y += 1; setTimeout(()=>nicolle.position.y-=1, 200); // Pulinho
+            nicolle.position.y += 1; setTimeout(()=>nicolle.position.y-=1, 200); 
 
             if(mission === 2) {
                 nearbyTarget.userData.interacted = true;
                 nearbyTarget.material.color.setHex(0x555555);
-                nearbyTarget.rotation.z = 1.5; // Caiu
+                nearbyTarget.rotation.z = 1.5; 
                 fights++;
                 updateUI("MISSÃO 2", `Brigas: ${fights}/3`);
                 if(fights>=3) { mission=3; updateUI("MISSÃO 3: DRINK", "Ache um homem com copo!"); }
