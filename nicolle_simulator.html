@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Nicolle Dias Simulator - Lucky Scope Deluxe</title>
+    <title>Nicolle Dias Simulator - Lucky Scope Final</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; touch-action: none; background: #000; }
         
@@ -101,21 +101,23 @@
         import * as THREE from 'https://unpkg.com/three@0.126.0/build/three.module.js';
 
         // ================= CONFIGURAÇÃO DE IMAGENS =================
+        // Baseado no seu print da pasta
         const MAIN_CHARS = {
             nicolle: 'nicolle.png', 
             marcao: 'jeffao.png', 
             hostess: 'hostess.png', 
-            keyla: 'https://cdn-icons-png.flaticon.com/512/4140/4140073.png',
+            keyla: 'keyla.png', // Ajustado conforme print
             japa: 'japa.png',
-            rival: 'https://cdn-icons-png.flaticon.com/512/4140/4140051.png',
+            rival: 'npc12m.png', // Usando uma das mulheres como rival padrão
             drink_icon: 'drink.png'
         };
 
+        // LISTA EXATA DOS ARQUIVOS DO SEU PRINT
         const NPC_GALLERY = [
-            'npc1.png', 'npc2.png', 'npc3.png', 'npc4.png', 'npc5.png',
-            'npc6.png', 'npc7.png', 'npc8.png', 'npc9.png', 'npc10.png',
-            'npc11.png', 'npc12.png', 'npc13.png', 'npc14.png', 'npc15.png',
-            'npc16.png', 'npc17.png', 'npc18.png', 'npc19.png', 'npc20.png', 'npc21.png',
+            'npc1h.png', 'npc2h.png', 'npc3.png', 'npc4m.png', 'npc5h.png',
+            'npc6m.png', 'npc7h.png', 'npc8h.png', 'npc9h.png', 'npc10h.png',
+            'npc11m.png', 'npc12m.png', 'npc13.png', 'npc14m.png', 'npc15h.png',
+            'npc16h.png', 'npc17h.png', 'npc18h.png', 'npc20h.png', 'npc21h.png', 'npc22h.png'
         ];
         // ===========================================================
 
@@ -129,7 +131,7 @@
         let nearbyTarget = null;
         let joystickManager;
         let moveForward = 0, moveSide = 0;
-        let discoLights = []; // Array para as luzes móveis
+        let discoLights = []; 
         const textureLoader = new THREE.TextureLoader();
 
         // Elementos UI
@@ -145,31 +147,27 @@
             scene.fog = new THREE.Fog(0x050505, 10, 90);
 
             camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 15, 25); // Camera um pouco mais alta para ver tudo
+            camera.position.set(0, 15, 25); 
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true; // Habilitar sombras
+            renderer.shadowMap.enabled = true; 
             document.body.appendChild(renderer.domElement);
 
             // --- LUZES ---
-            const ambient = new THREE.AmbientLight(0x404040); // Luz base fraca
+            const ambient = new THREE.AmbientLight(0x404040); 
             scene.add(ambient);
-            
-            // Luz Principal da Pista
             const mainLight = new THREE.PointLight(0xff00de, 0.8, 60);
             mainLight.position.set(20, 20, 0);
             scene.add(mainLight);
-
-            // Canhões de Luz (Jogos de Luz)
             createDiscoLights();
 
             // --- CENÁRIO ---
             createEnvironment();
-            createSignage(); // Placa Frente
-            createDJBooth(); // Palco DJ GATTI
-            createBarArea(); // Área do Bar
-            createRestroomArea(); // Banheiro
+            createSignage(); 
+            createDJBooth(); 
+            createBarArea(); 
+            createRestroomArea(); 
 
             // --- PERSONAGENS ---
             
@@ -184,27 +182,33 @@
             scene.add(hostess);
 
             // Fila Organizada
-            for(let i=0; i<10; i++) {
+            for(let i=0; i<8; i++) {
                 let randomImg = NPC_GALLERY[Math.floor(Math.random() * NPC_GALLERY.length)];
-                let npc = createSprite(randomImg, -16, 2, -15 - (i * 3), 4); // Fila reta
+                let npc = createSprite(randomImg, -16, 2, -15 - (i * 3), 4);
                 npc.material.color.setHex(0xaaaaaa); 
                 scene.add(npc);
             }
 
-            // Balada (Pista)
-            for(let i=0; i<25; i++) { // Mais gente
+            // Balada (Pista) - LÓGICA DE SEXO PELO NOME
+            for(let i=0; i<25; i++) { 
                 let randomImg = NPC_GALLERY[Math.floor(Math.random() * NPC_GALLERY.length)];
-                let isMan = Math.random() > 0.5;
-                // Espalhar na área central (evitar paredes)
+                
+                // DETECÇÃO DE GÊNERO: Se tem 'h' no nome é homem, caso contrário mulher
+                let isMan = randomImg.toLowerCase().includes('h');
+                
                 let npc = createSprite(randomImg, 10 + Math.random()*50, 2, -30 + Math.random()*60, 4.5);
                 
                 if (!isMan) {
+                    // É mulher -> Alvo de briga
                     npc.userData = { type: 'woman_fight', interacted: false };
                 } else {
+                    // É homem -> Pode ter drink
                     let hasDrink = Math.random() > 0.4;
                     npc.userData = { type: hasDrink ? 'man_drink' : 'man', interacted: false };
+                    
                     if(hasDrink) {
-                        let cup = createSprite(MAIN_CHARS.drink_icon, 0.6, -0.5, 0.1, 0.4); 
+                        // CORREÇÃO VISUAL: Drink mais alto (y = -0.1) e um pouco à frente (z = 0.1)
+                        let cup = createSprite(MAIN_CHARS.drink_icon, 0.5, -0.1, 0.1, 0.4); 
                         npc.add(cup);
                     }
                 }
@@ -212,20 +216,20 @@
                 scene.add(npc);
             }
 
-            // Personagens da Missão Final (Perto do DJ agora)
-            keyla = createSprite(MAIN_CHARS.keyla, 55, 2, -35, 5); // Canto perto do bar
+            // Personagens Fixos
+            keyla = createSprite(MAIN_CHARS.keyla, 55, 2, -35, 5);
             keyla.userData = { type: 'keyla' };
-            keyla.material.color.setHex(0xffaaaa);
+            keyla.material.color.setHex(0xffaaaa); // Tint vermelho leve
             npcs.push(keyla);
             scene.add(keyla);
 
-            japa = createSprite(MAIN_CHARS.japa, 60, 2, 0, 5); // Frente do DJ
+            japa = createSprite(MAIN_CHARS.japa, 60, 2, 0, 5);
             japa.userData = { type: 'japa' };
             npcs.push(japa);
             scene.add(japa);
 
             rival = createSprite(MAIN_CHARS.rival, 62, 2, 0, 4.5);
-            rival.material.color.setHex(0xaaffaa);
+            rival.material.color.setHex(0xaaffaa); // Tint verde leve
             scene.add(rival);
 
             initJoystick();
@@ -233,149 +237,82 @@
         }
 
         // --- CONSTRUÇÃO DO CENÁRIO ---
-
         function createDiscoLights() {
-            // Cria 4 Spotlights coloridos que vão girar
             const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00];
             for(let i=0; i<4; i++) {
                 const light = new THREE.SpotLight(colors[i], 2);
-                light.position.set(30, 25, 0); // Todos saem do teto central
+                light.position.set(30, 25, 0); 
                 light.angle = Math.PI / 6;
                 light.penumbra = 0.5;
                 light.distance = 80;
-                
-                // Objeto alvo invisível para mover a luz
                 const target = new THREE.Object3D();
                 scene.add(target);
                 light.target = target;
-                
                 scene.add(light);
                 discoLights.push({ light: light, target: target, offset: i * 2, speed: 0.02 + (i*0.01) });
             }
         }
-
         function createDJBooth() {
-            // Palco
             const stage = new THREE.Mesh(new THREE.BoxGeometry(10, 4, 30), new THREE.MeshStandardMaterial({color: 0x111111}));
-            stage.position.set(70, 2, 0);
-            scene.add(stage);
-
-            // Mesa DJ
+            stage.position.set(70, 2, 0); scene.add(stage);
             const table = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 10), new THREE.MeshStandardMaterial({color: 0x333333}));
-            table.position.set(66, 4, 0);
-            scene.add(table);
-
-            // Placa DJ GATTI
-            const canvas = document.createElement('canvas');
-            canvas.width = 256; canvas.height = 128;
+            table.position.set(66, 4, 0); scene.add(table);
+            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 128;
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#000'; ctx.fillRect(0,0,256,128);
             ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 8; ctx.strokeRect(5,5,246,118);
-            ctx.font = 'bold 40px Arial'; ctx.fillStyle = '#00ffff'; ctx.textAlign = 'center';
-            ctx.fillText("DJ GATTI", 128, 75);
-            
+            ctx.font = 'bold 40px Arial'; ctx.fillStyle = '#00ffff'; ctx.textAlign = 'center'; ctx.fillText("DJ GATTI", 128, 75);
             const tex = new THREE.CanvasTexture(canvas);
             const sign = new THREE.Mesh(new THREE.PlaneGeometry(10, 5), new THREE.MeshBasicMaterial({map: tex, side: THREE.DoubleSide}));
-            sign.position.set(65, 10, 0);
-            sign.rotation.y = -Math.PI / 2;
-            scene.add(sign);
+            sign.position.set(65, 10, 0); sign.rotation.y = -Math.PI / 2; scene.add(sign);
         }
-
         function createBarArea() {
-            // Parede Fundo (lado negativo do Z)
             const bar = new THREE.Mesh(new THREE.BoxGeometry(30, 3, 4), new THREE.MeshStandardMaterial({color: 0x330000}));
-            bar.position.set(30, 1.5, -45);
-            scene.add(bar);
-
-            // Placa BAR
-            const canvas = document.createElement('canvas');
-            canvas.width = 128; canvas.height = 64;
+            bar.position.set(30, 1.5, -45); scene.add(bar);
+            const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 64;
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#220000'; ctx.fillRect(0,0,128,64);
-            ctx.font = 'bold 40px Arial'; ctx.fillStyle = '#ffaa00'; ctx.textAlign = 'center';
-            ctx.fillText("BAR", 64, 45);
-            
+            ctx.font = 'bold 40px Arial'; ctx.fillStyle = '#ffaa00'; ctx.textAlign = 'center'; ctx.fillText("BAR", 64, 45);
             const tex = new THREE.CanvasTexture(canvas);
             const sign = new THREE.Mesh(new THREE.PlaneGeometry(8, 4), new THREE.MeshBasicMaterial({map: tex}));
-            sign.position.set(30, 6, -45);
-            scene.add(sign);
+            sign.position.set(30, 6, -45); scene.add(sign);
         }
-
         function createRestroomArea() {
-            // Paredes do Banheiro (lado positivo do Z)
             const wall1 = new THREE.Mesh(new THREE.BoxGeometry(20, 12, 1), new THREE.MeshStandardMaterial({color: 0x222222}));
-            wall1.position.set(30, 6, 35); // Parede divisória
-            scene.add(wall1);
-
-            // Placa WC
-            const canvas = document.createElement('canvas');
-            canvas.width = 64; canvas.height = 64;
+            wall1.position.set(30, 6, 35); scene.add(wall1);
+            const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#fff'; ctx.fillRect(0,0,64,64);
-            ctx.font = 'bold 40px Arial'; ctx.fillStyle = '#000'; ctx.textAlign = 'center';
-            ctx.fillText("WC", 32, 45);
-            
+            ctx.font = 'bold 40px Arial'; ctx.fillStyle = '#000'; ctx.textAlign = 'center'; ctx.fillText("WC", 32, 45);
             const tex = new THREE.CanvasTexture(canvas);
             const sign = new THREE.Mesh(new THREE.PlaneGeometry(3, 3), new THREE.MeshBasicMaterial({map: tex}));
-            sign.position.set(30, 8, 34.4);
-            sign.rotation.y = Math.PI; // Virada pra pista
-            scene.add(sign);
+            sign.position.set(30, 8, 34.4); sign.rotation.y = Math.PI; scene.add(sign);
         }
-
         function createSignage() {
-            // Placa Lucky Scope (Já existente)
-            const canvas = document.createElement('canvas');
-            canvas.width = 512; canvas.height = 256;
+            const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 256;
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#110011'; ctx.fillRect(0,0,512,256);
             ctx.strokeStyle = '#ff00de'; ctx.lineWidth = 15; ctx.strokeRect(10,10,492,236);
-            ctx.font = 'bold 60px Arial'; ctx.fillStyle = '#ff00de'; ctx.textAlign = 'center';
-            ctx.fillText("LUCKY SCOPE", 256, 120);
+            ctx.font = 'bold 60px Arial'; ctx.fillStyle = '#ff00de'; ctx.textAlign = 'center'; ctx.fillText("LUCKY SCOPE", 256, 120);
             ctx.font = 'italic 30px Arial'; ctx.fillStyle = '#ffffff'; ctx.fillText("Nosso After", 256, 180);
-            
             const texture = new THREE.CanvasTexture(canvas);
             const sign = new THREE.Mesh(new THREE.PlaneGeometry(14, 7), new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide }));
-            sign.position.set(-11.5, 10, 0); 
-            sign.rotation.y = -Math.PI / 2;
-            scene.add(sign);
+            sign.position.set(-11.5, 10, 0); sign.rotation.y = -Math.PI / 2; scene.add(sign);
         }
-
         function createEnvironment() {
-            // Chão Roxo Claro
             const floor = new THREE.Mesh(new THREE.PlaneGeometry(160, 100), new THREE.MeshStandardMaterial({ color: 0x662266, roughness: 0.1 }));
-            floor.rotation.x = -Math.PI/2;
-            floor.position.x = 20; // Centralizar melhor
-            scene.add(floor);
-
-            // Paredes Externas
+            floor.rotation.x = -Math.PI/2; floor.position.x = 20; scene.add(floor);
             const wallMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
-            // Parede Entrada
-            const wallEntry = new THREE.Mesh(new THREE.BoxGeometry(2, 12, 100), wallMat);
-            wallEntry.position.set(-10, 6, 0);
-            scene.add(wallEntry);
-            // Parede Fundo (Atrás DJ)
-            const wallBack = new THREE.Mesh(new THREE.BoxGeometry(2, 12, 100), wallMat);
-            wallBack.position.set(75, 6, 0);
-            scene.add(wallBack);
-            // Paredes Laterais
-            const wallSide1 = new THREE.Mesh(new THREE.BoxGeometry(87, 12, 2), wallMat);
-            wallSide1.position.set(32.5, 6, 50);
-            scene.add(wallSide1);
-            const wallSide2 = new THREE.Mesh(new THREE.BoxGeometry(87, 12, 2), wallMat);
-            wallSide2.position.set(32.5, 6, -50);
-            scene.add(wallSide2);
-            
-            // Colunas Entrada
-            createColumn(-10, 6, 8);
-            createColumn(-10, 6, -8);
+            const wallEntry = new THREE.Mesh(new THREE.BoxGeometry(2, 12, 100), wallMat); wallEntry.position.set(-10, 6, 0); scene.add(wallEntry);
+            const wallBack = new THREE.Mesh(new THREE.BoxGeometry(2, 12, 100), wallMat); wallBack.position.set(75, 6, 0); scene.add(wallBack);
+            const wallSide1 = new THREE.Mesh(new THREE.BoxGeometry(87, 12, 2), wallMat); wallSide1.position.set(32.5, 6, 50); scene.add(wallSide1);
+            const wallSide2 = new THREE.Mesh(new THREE.BoxGeometry(87, 12, 2), wallMat); wallSide2.position.set(32.5, 6, -50); scene.add(wallSide2);
+            createColumn(-10, 6, 8); createColumn(-10, 6, -8);
         }
-
         function createColumn(x,y,z) {
             const m = new THREE.Mesh(new THREE.BoxGeometry(3,12,3), new THREE.MeshStandardMaterial({color:0x333333}));
-            m.position.set(x,y,z);
-            scene.add(m);
+            m.position.set(x,y,z); scene.add(m);
         }
-
         function createSprite(url, x, y, z, s) {
             const map = textureLoader.load(url);
             const mat = new THREE.SpriteMaterial({ map: map });
@@ -384,7 +321,6 @@
             sprite.scale.set(s,s,1);
             return sprite;
         }
-
         function initJoystick() {
             joystickManager = nipplejs.create({
                 zone: document.getElementById('joystick-zone'),
@@ -411,15 +347,13 @@
         };
 
         function updateGameLogic() {
-            nicolle.position.x += moveSide * 0.25; // Um pouco mais rápido
+            nicolle.position.x += moveSide * 0.25; 
             nicolle.position.z += moveForward * 0.25;
 
-            // Bloqueio Porta
             if (!entryGranted && nicolle.position.x > -8) {
                 nicolle.position.x = -8.2; dialogBox.style.display = 'block'; moveForward = 0; moveSide = 0; 
             }
 
-            // Animar Luzes
             const time = Date.now() * 0.001;
             discoLights.forEach(dl => {
                 dl.target.position.x = 30 + Math.cos(time * dl.speed + dl.offset) * 30;
@@ -480,12 +414,9 @@
         function animate() {
             requestAnimationFrame(animate);
             updateGameLogic();
-            
-            // Camera Segue Nicolle
             camera.position.x = nicolle.position.x; 
             camera.position.z = nicolle.position.z + 20;
             camera.lookAt(nicolle.position.x, 0, nicolle.position.z);
-            
             renderer.render(scene, camera);
         }
 
