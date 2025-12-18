@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Nicolle Dias Simulator - Boss Battle V12</title>
+    <title>Nicolle Dias Simulator - Final V13</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; touch-action: none; background: #000; }
         
@@ -21,41 +21,27 @@
         h1 { margin: 0; font-size: 18px; color: #ff00de; text-transform: uppercase; }
         h2 { margin: 5px 0 0; font-size: 14px; color: #fff; }
 
-        /* BARRA DE VIDA DO CHEFÃO (KAMILLY) */
-        #boss-hud {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60%;
-            max-width: 400px;
-            display: none; /* Escondido até a fase bonus */
-            z-index: 15;
+        /* INVENTÁRIO FINAL (Novo) */
+        #inventory-display {
+            position: absolute; top: 20px; right: 20px;
+            background: rgba(0,0,0,0.8); border: 2px solid #ff00de;
+            padding: 15px 25px; border-radius: 15px; color: #fff;
+            font-weight: bold; font-size: 16px; display: none; z-index: 201;
+            box-shadow: 0 0 15px #ff00de;
             pointer-events: none;
         }
-        #boss-name {
-            text-align: center;
-            color: #ff0000;
-            font-weight: bold;
-            font-size: 24px;
-            text-shadow: 2px 2px 0 #000;
-            margin-bottom: 5px;
-            text-transform: uppercase;
+
+        /* TELA DE RECOMPENSA (Novo) */
+        #reward-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+            z-index: 200; color: #ff00de; animation: fadeIn 1s ease-out;
         }
-        #health-bar-bg {
-            width: 100%;
-            height: 25px;
-            background: #330000;
-            border: 3px solid #fff;
-            border-radius: 15px;
-            overflow: hidden;
-        }
-        #health-bar-fill {
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, #ff0000, #ff6666);
-            transition: width 0.2s ease-out;
-        }
+        #reward-container { display: flex; align-items: center; gap: 30px; margin-top: 30px; }
+        .reward-img { height: 150px; width: auto; filter: drop-shadow(0 0 20px #ff00de); }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         /* Dialogo da Porta */
         #door-dialog {
@@ -125,12 +111,16 @@
         </div>
     </div>
 
-    <div id="boss-hud">
-        <div id="boss-name">KAMILLY</div>
-        <div id="health-bar-bg">
-            <div id="health-bar-fill"></div>
+    <div id="reward-screen">
+        <h1 style="font-size: 40px; margin-bottom: 10px;">JOGO ZERADO!</h1>
+        <h2 style="font-size: 20px; color: white;">Recompensa Desbloqueada:</h2>
+        <div id="reward-container">
+            <img id="img-redbull" class="reward-img" alt="Redbull">
+            <img id="img-star" class="reward-img" style="height: 100px;" alt="Estrela">
         </div>
     </div>
+
+    <div id="inventory-display">Inventário: (1) Lança; (1) Drink</div>
     
     <div id="camera-hint">👋 Arraste na tela para girar a câmera</div>
 
@@ -159,15 +149,15 @@
             japa: 'japa.png',
             rival: 'npc12m.png',
             drink_icon: 'drink.png',
-            // NOVOS ASSETS DA FASE BÔNUS
-            kamilly: 'kamilly.png',
-            remedio: 'remedio.png'
+            // Imagens do Final
+            redbull_reward: 'redbull.png',
+            star_reward: 'star.png'
         };
 
         const NPC_GALLERY = [
             'npc1h.png', 'npc2h.png', 'npc3.png', 'npc4m.png', 'npc5h.png',
             'npc6m.png', 'npc7h.png', 'npc8h.png', 'npc9h.png', 'npc10h.png',
-            'npc11m.png', 'npc13.png', 'npc14m.png', 'npc15h.png',
+            'npc11m.png', 'npc12m.png', 'npc13.png', 'npc14m.png', 'npc15h.png',
             'npc16h.png', 'npc17h.png', 'npc18h.png', 'npc20h.png', 'npc21h.png', 'npc22h.png', 'npc23h.png', 'npc24h.png', 'npc25h.png'
         ];
 
@@ -179,16 +169,14 @@
 
         let scene, camera, renderer;
         let nicolle, hostess, marcao;
-        let npcs = []; // Lista genérica de NPCs
+        let npcs = []; 
         let keyla, japa, rival;
-        let kamilly; // O Chefão
         
         // Estado do Jogo
         let mission = 1;
         let fights = 0;
         let entryGranted = false;
         let nearbyTarget = null;
-        let kamillyHealth = 100;
         
         let joystickManager;
         let moveForward = 0, moveSide = 0;
@@ -209,9 +197,7 @@
         const btnAction = document.getElementById('action-btn');
         const dialogBox = document.getElementById('door-dialog');
         const pixAlert = document.getElementById('pix-alert');
-        const bossHud = document.getElementById('boss-hud');
-        const healthFill = document.getElementById('health-bar-fill');
-        const missionBox = document.getElementById('mission-box'); // Para esconder na boss fight se quiser
+        const missionBox = document.getElementById('mission-box');
 
         function init() {
             scene = new THREE.Scene();
@@ -286,76 +272,24 @@
             }
         }
 
-        // --- FASE BÔNUS: BOSS BATTLE ---
-        function startBonusPhase() {
-            mission = 6;
-            
-            // 1. Limpar Cena (Thanos Snap)
-            // Remove todos os NPCs da lista npcs
-            npcs.forEach(npc => scene.remove(npc));
-            npcs = []; // Zera a lista
-            
-            // Remove personagens específicos
-            scene.remove(marcao);
-            scene.remove(hostess);
-            scene.remove(keyla);
-            scene.remove(japa);
-            scene.remove(rival);
+        // --- TELA FINAL ---
+        function showRewardScreen() {
+            missionBox.style.display = 'none';
+            btnAction.style.display = 'none';
+            document.getElementById('joystick-zone').style.display = 'none';
+            document.getElementById('camera-hint').style.display = 'none';
 
-            // 2. Setup Nicolle
-            nicolle.position.set(40, 2, 0); // Posiciona Nicolle no meio da pista
-            cameraAngle = -Math.PI / 2; // Câmera olhando para o palco
+            // Carregar imagens
+            document.getElementById('img-redbull').src = MAIN_CHARS.redbull_reward;
+            document.getElementById('img-star').src = MAIN_CHARS.star_reward;
 
-            // 3. Spawn Kamilly (Chefão)
-            kamilly = createSprite(MAIN_CHARS.kamilly, 60, 2.5, 0, 6); // Ela é maior (Escala 6)
-            kamilly.userData = { type: 'boss' };
-            
-            // Adicionar o Remédio na mão dela
-            let remedio = createSprite(MAIN_CHARS.remedio, 1.2, 0, 0.1, 1.5);
-            kamilly.add(remedio);
-            
-            npcs.push(kamilly); // Adiciona na lista para detecção de colisão
-            scene.add(kamilly);
-
-            // 4. UI Updates
-            bossHud.style.display = 'block'; // Mostra barra de vida
-            updateUI("DERROTAR A KAMILLY", "Salvar o Jeff");
-            
-            alert("⚠️ ALERTA DE CHEFÃO: KAMILLY APARECEU!");
+            document.getElementById('reward-screen').style.display = 'flex';
+            document.getElementById('inventory-display').style.display = 'block';
         }
 
-        function hitBoss() {
-            kamillyHealth -= 10;
-            healthFill.style.width = kamillyHealth + "%";
-
-            // Efeito visual de dano
-            kamilly.material.color.setHex(0xff0000); // Pisca vermelho
-            setTimeout(() => kamilly.material.color.setHex(0xffffff), 200);
-            
-            // Pulo de impacto
-            kamilly.position.y += 1;
-            setTimeout(() => kamilly.position.y -= 1, 150);
-
-            if (kamillyHealth <= 0) {
-                // Vitória Final
-                kamilly.rotation.z = Math.PI / 2; // Cai no chão
-                kamilly.position.y = 0.5;
-                bossHud.style.display = 'none';
-                btnAction.style.display = 'none';
-                
-                updateUI("VOCÊ SALVOU O JEFF!", "Parabéns! Nicolle derrotou a Kamilly e dominou a Lucky Scope.");
-                setTimeout(() => alert("🎉 FIM DE JOGO! VOCÊ ZEROU TUDO! 🎉"), 500);
-            }
-        }
-
-
-        // ... [CONTROLES, JOYSTICK, CENÁRIO - MANTIDOS IGUAIS] ...
-        // (Vou omitir as funções repetidas de createEnvironment, etc para não estourar o limite, 
-        // mas elas devem estar aqui exatamente como na V11)
-        
         // --- UPDATE DO LÓGICA ---
         function updateGameLogic() {
-            // Movimento (Igual V11)
+            // Movimento
             const camDirX = -Math.sin(cameraAngle); const camDirZ = -Math.cos(cameraAngle); 
             const camRightX = -Math.cos(cameraAngle); const camRightZ = Math.sin(cameraAngle);
             const speed = 0.25;
@@ -380,14 +314,7 @@
             btnAction.style.display = 'none';
             nearbyTarget = null;
 
-            // Filtro especial para o Boss
             npcs.forEach(npc => {
-                if (nicolle.position.distanceTo(npc.position) < 6) { // Boss tem hitbox maior
-                    if (mission === 6 && npc.userData.type === 'boss' && kamillyHealth > 0) {
-                        showBtn("BATER 👊", npc);
-                    }
-                }
-                
                 // NPCs normais
                 if (nicolle.position.distanceTo(npc.position) < 5 && !npc.userData.interacted) {
                     if (mission === 2 && npc.userData.type === 'woman_fight') showBtn("BRIGAR", npc);
@@ -401,12 +328,6 @@
         window.executeAction = function() {
             if(!nearbyTarget) return;
             nicolle.position.y += 1.5; setTimeout(()=>nicolle.position.y-=1.5, 200); 
-
-            if (mission === 6) {
-                // Lógica de Bater no Chefão
-                hitBoss();
-                return;
-            }
 
             if(mission === 2) {
                 nearbyTarget.userData.interacted = true;
@@ -425,20 +346,20 @@
                 mission=5; updateUI("MISSÃO FINAL", "O Japa está na frente do Palco DJ GATTI!");
             }
             else if(mission === 5) {
-                // Fim da Missão 5 -> INÍCIO DA FASE BÔNUS
+                // Fim da Missão 5 -> TELA FINAL
                 rival.position.x += 10;
-                // nicolle.position.x = japa.position.x - 2; 
-                alert("JAPA CONQUISTADO! MAS ESPERE...");
-                setTimeout(startBonusPhase, 1000); // Começa a fase bônus em 1 seg
+                updateUI("FIM DE JOGO", "Você conquistou o Japa!");
+                btnAction.style.display = 'none';
+                setTimeout(showRewardScreen, 1000);
             }
         }
 
-        // Funções de UI, Fala e Ambiente (Copiar da V11)
+        // Funções de UI, Fala e Ambiente
         function updateUI(t, d) { uiTitle.innerText=t; uiDesc.innerText=d; }
         window.escolherEntrada = function(tipo) { dialogBox.style.display='none'; if(tipo==='qrcode'){pixAlert.style.display='block';setTimeout(()=>{pixAlert.style.display='none'},3000);} entryGranted=true; mission=2; updateUI("MISSÃO 2: AS BRIGAS", "Puxe o cabelo de 3 mulheres!"); nicolle.position.x=-4; };
         function showBtn(txt, tgt) { nearbyTarget = tgt; btnAction.innerText = txt; btnAction.style.display = 'flex'; }
         
-        function startRandomSpeechLoop() { setInterval(() => { if (npcs.length === 0 || mission === 6) return; let speaker = npcs[Math.floor(Math.random() * npcs.length)]; if (speaker && !speaker.userData.isTalking) { let phrase = PHRASES[Math.floor(Math.random() * PHRASES.length)]; speak(speaker, phrase); } }, 8000); }
+        function startRandomSpeechLoop() { setInterval(() => { if (npcs.length === 0) return; let speaker = npcs[Math.floor(Math.random() * npcs.length)]; if (speaker && !speaker.userData.isTalking) { let phrase = PHRASES[Math.floor(Math.random() * PHRASES.length)]; speak(speaker, phrase); } }, 8000); }
         function speak(npc, text) { npc.userData.isTalking=true; const c=document.createElement('canvas');const ctx=c.getContext('2d');c.width=256;c.height=128;ctx.fillStyle='#fff';ctx.fillRect(10,10,236,108);ctx.strokeRect(10,10,236,108);ctx.font='bold 24px Arial';ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='middle'; ctx.fillText(text,128,64); const tex=new THREE.CanvasTexture(c);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex}));s.position.set(0,1.8,0);s.scale.set(1.5,0.75,1);npc.add(s);setTimeout(()=>{npc.remove(s);npc.userData.isTalking=false;},4000); }
         
         function initCameraControls() { document.addEventListener('mousedown',onPointerDown);document.addEventListener('mousemove',onPointerMove);document.addEventListener('mouseup',onPointerUp);document.addEventListener('touchstart',onPointerDown,{passive:false});document.addEventListener('touchmove',onPointerMove,{passive:false});document.addEventListener('touchend',onPointerUp); }
