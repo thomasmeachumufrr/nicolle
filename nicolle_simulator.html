@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Nicolle Dias Simulator - Lucky Scope V7</title>
+    <title>Nicolle Dias Simulator - Lucky Scope V8</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; touch-action: none; background: #000; }
         
@@ -120,7 +120,7 @@
             'npc1h.png', 'npc2h.png', 'npc3.png', 'npc4m.png', 'npc5h.png',
             'npc6m.png', 'npc7h.png', 'npc8h.png', 'npc9h.png', 'npc10h.png',
             'npc11m.png', 'npc12m.png', 'npc13.png', 'npc14m.png', 'npc15h.png',
-            'npc16h.png', 'npc17h.png', 'npc18h.png', 'npc20h.png', 'npc21h.png', 'npc22h.png', 'npc23h.png', 'npc24h.png', 'npc25h.png'
+            'npc16h.png', 'npc17h.png', 'npc18h.png', 'npc20h.png', 'npc21h.png', 'npc22h.png'
         ];
 
         let scene, camera, renderer;
@@ -133,11 +133,12 @@
         let nearbyTarget = null;
         let joystickManager;
         let moveForward = 0, moveSide = 0;
-        let discoLights = []; 
+        let discoLights = [];
+        let mainDiscoLight; 
         const textureLoader = new THREE.TextureLoader();
 
         // --- CÂMERA ---
-        let cameraAngle = 0; // Começa olhando para o Sul (Z-)
+        let cameraAngle = 0;
         let cameraDistance = 25;
         let cameraHeight = 15;
         let isDragging = false;
@@ -163,25 +164,24 @@
             document.body.appendChild(renderer.domElement);
 
             // --- ILUMINAÇÃO ---
-            const ambient = new THREE.AmbientLight(0x404040); 
+            // Aumentei a luz ambiente geral
+            const ambient = new THREE.AmbientLight(0x606060); 
             scene.add(ambient);
             
-            // Luz Interna (Balada)
-            const mainLight = new THREE.PointLight(0xff00de, 0.8, 60);
-            mainLight.position.set(20, 20, 0); 
-            scene.add(mainLight);
+            // Luz Interna Principal (Balada) - Guardei numa variável para animar
+            mainDiscoLight = new THREE.PointLight(0xff00de, 1.0, 70);
+            mainDiscoLight.position.set(20, 20, 0); 
+            scene.add(mainDiscoLight);
 
-            // NOVO: Luz Externa (Fila e Entrada)
-            const streetLight = new THREE.SpotLight(0xffffee, 1.5);
-            streetLight.position.set(-25, 20, -10); // Poste alto na rua
-            streetLight.angle = Math.PI / 4;
-            streetLight.penumbra = 0.5;
-            streetLight.distance = 60;
-            streetLight.target.position.set(-15, 0, -10); // Aponta para a fila
-            scene.add(streetLight);
-            scene.add(streetLight.target);
+            // NOVO: Luz Externa FORTE (Holofote da Rua)
+            const outsideLight = new THREE.DirectionalLight(0xffedcc, 1.5); // Cor meio amarelada
+            outsideLight.position.set(-30, 50, -20); // Alto e a esquerda
+            outsideLight.target.position.set(-10, 0, -10); // Aponta pra fila
+            outsideLight.castShadow = true;
+            scene.add(outsideLight);
+            scene.add(outsideLight.target);
 
-            // Luzes Móveis
+            // Luzes Móveis e Piscantes
             createDiscoLights();
 
             // Cenário
@@ -194,22 +194,17 @@
             // Personagens Principais
             nicolle = createSprite(MAIN_CHARS.nicolle, -40, 2, 0, 5); 
             scene.add(nicolle);
-            
-            // Marcão (Jeffão) - Segurança
             marcao = createSprite(MAIN_CHARS.marcao, -12, 2.5, -6, 6); 
             scene.add(marcao);
-            
-            // Hostess
             hostess = createSprite(MAIN_CHARS.hostess, -8, 2, 6, 5); 
             scene.add(hostess);
 
-            // --- FILA ORGANIZADA E PRÓXIMA ---
-            // Agora começa em Z = -8 (perto do Marcão) e vai para trás
+            // Fila
             for(let i=0; i<8; i++) {
                 let randomImg = NPC_GALLERY[Math.floor(Math.random() * NPC_GALLERY.length)];
-                // x fixo em -14 (parede), z espaçado
                 let npc = createSprite(randomImg, -14, 2, -8 - (i * 2.5), 4);
-                npc.material.color.setHex(0xaaaaaa); // Um pouco escurecido
+                // Removi o tint escuro para eles ficarem claros com a nova luz
+                // npc.material.color.setHex(0xaaaaaa); 
                 scene.add(npc);
             }
 
@@ -269,7 +264,7 @@
         }
         function onPointerUp() { isDragging = false; }
 
-        // --- JOYSTICK (CORRIGIDO) ---
+        // --- JOYSTICK (CORRIGIDO HORIZONTALMENTE) ---
         function initJoystick() {
             joystickManager = nipplejs.create({
                 zone: document.getElementById('joystick-zone'),
@@ -277,9 +272,9 @@
             });
             joystickManager.on('move', (evt, data) => {
                 const joyAngle = data.angle.radian;
-                // CORREÇÃO: "Up" no joystick deve ser positivo para mover para frente (lógica invertida da V6)
-                moveSide = Math.cos(joyAngle); 
-                moveForward = Math.sin(joyAngle); // Removi o negativo aqui
+                // CORREÇÃO HORIZONTAL: Inverti o cosseno (adicionei o negativo)
+                moveSide = -Math.cos(joyAngle); 
+                moveForward = Math.sin(joyAngle);
             });
             joystickManager.on('end', () => { moveForward = 0; moveSide = 0; });
         }
@@ -288,7 +283,8 @@
         function createDiscoLights() {
             const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00];
             for(let i=0; i<4; i++) {
-                const light = new THREE.SpotLight(colors[i], 2);
+                // Aumentei a intensidade base para o efeito de piscar ficar melhor
+                const light = new THREE.SpotLight(colors[i], 3);
                 light.position.set(30, 25, 0); 
                 light.angle = Math.PI / 6; light.penumbra = 0.5; light.distance = 80;
                 const target = new THREE.Object3D(); scene.add(target); light.target = target; scene.add(light);
@@ -387,8 +383,6 @@
             
             const speed = 0.25;
             
-            // Invertemos a lógica do "moveForward" no joystick, agora aqui deve funcionar normal
-            // "Frente" no joystick = Valor Positivo = Anda na direção da câmera
             const finalMoveX = (camDirX * moveForward + camRightX * moveSide) * speed;
             const finalMoveZ = (camDirZ * moveForward + camRightZ * moveSide) * speed;
 
@@ -399,10 +393,23 @@
                 nicolle.position.x = -8.2; dialogBox.style.display = 'block'; moveForward = 0; moveSide = 0; 
             }
 
+            // --- ANIMAÇÃO DAS LUZES ---
             const time = Date.now() * 0.001;
+            
+            // Luz Principal Pulsante
+            mainDiscoLight.intensity = 0.8 + Math.sin(time * 2) * 0.4;
+
+            // Canhões de Luz (Movimento + Piscar)
             discoLights.forEach(dl => {
                 dl.target.position.x = 30 + Math.cos(time * dl.speed + dl.offset) * 30;
                 dl.target.position.z = Math.sin(time * dl.speed + dl.offset) * 40;
+                
+                // Efeito Strobe Aleatório
+                if(Math.random() > 0.92) {
+                    dl.light.intensity = 5; // Piscar forte
+                } else {
+                    dl.light.intensity = 1; // Normal
+                }
             });
 
             btnAction.style.display = 'none';
