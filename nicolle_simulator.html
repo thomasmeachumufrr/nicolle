@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Nicolle Dias Simulator - Câmera Livre</title>
+    <title>Nicolle Dias Simulator - Lucky Scope V7</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; touch-action: none; background: #000; }
         
@@ -120,7 +120,7 @@
             'npc1h.png', 'npc2h.png', 'npc3.png', 'npc4m.png', 'npc5h.png',
             'npc6m.png', 'npc7h.png', 'npc8h.png', 'npc9h.png', 'npc10h.png',
             'npc11m.png', 'npc12m.png', 'npc13.png', 'npc14m.png', 'npc15h.png',
-            'npc16h.png', 'npc17h.png', 'npc18h.png', 'npc20h.png', 'npc21h.png', 'npc22h.png,', 'npc23h.png', 'npc24h.png', 'faia.png'
+            'npc16h.png', 'npc17h.png', 'npc18h.png', 'npc20h.png', 'npc21h.png', 'npc22h.png', 'npc23h.png', 'npc24h.png', 'npc25h.png'
         ];
 
         let scene, camera, renderer;
@@ -136,8 +136,8 @@
         let discoLights = []; 
         const textureLoader = new THREE.TextureLoader();
 
-        // --- VARIÁVEIS DE CÂMERA ---
-        let cameraAngle = Math.PI; // Começa olhando de frente (Norte)
+        // --- CÂMERA ---
+        let cameraAngle = 0; // Começa olhando para o Sul (Z-)
         let cameraDistance = 25;
         let cameraHeight = 15;
         let isDragging = false;
@@ -152,8 +152,8 @@
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x050505);
-            scene.fog = new THREE.Fog(0x050505, 10, 90);
+            scene.background = new THREE.Color(0x020202);
+            scene.fog = new THREE.Fog(0x020202, 10, 90);
 
             camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
 
@@ -162,10 +162,26 @@
             renderer.shadowMap.enabled = true; 
             document.body.appendChild(renderer.domElement);
 
-            // Luzes
-            const ambient = new THREE.AmbientLight(0x404040); scene.add(ambient);
+            // --- ILUMINAÇÃO ---
+            const ambient = new THREE.AmbientLight(0x404040); 
+            scene.add(ambient);
+            
+            // Luz Interna (Balada)
             const mainLight = new THREE.PointLight(0xff00de, 0.8, 60);
-            mainLight.position.set(20, 20, 0); scene.add(mainLight);
+            mainLight.position.set(20, 20, 0); 
+            scene.add(mainLight);
+
+            // NOVO: Luz Externa (Fila e Entrada)
+            const streetLight = new THREE.SpotLight(0xffffee, 1.5);
+            streetLight.position.set(-25, 20, -10); // Poste alto na rua
+            streetLight.angle = Math.PI / 4;
+            streetLight.penumbra = 0.5;
+            streetLight.distance = 60;
+            streetLight.target.position.set(-15, 0, -10); // Aponta para a fila
+            scene.add(streetLight);
+            scene.add(streetLight.target);
+
+            // Luzes Móveis
             createDiscoLights();
 
             // Cenário
@@ -175,17 +191,29 @@
             createBarArea(); 
             createRestroomArea(); 
 
-            // Personagens
-            nicolle = createSprite(MAIN_CHARS.nicolle, -40, 2, 0, 5); scene.add(nicolle);
-            marcao = createSprite(MAIN_CHARS.marcao, -12, 2.5, -6, 6); scene.add(marcao);
-            hostess = createSprite(MAIN_CHARS.hostess, -8, 2, 6, 5); scene.add(hostess);
+            // Personagens Principais
+            nicolle = createSprite(MAIN_CHARS.nicolle, -40, 2, 0, 5); 
+            scene.add(nicolle);
+            
+            // Marcão (Jeffão) - Segurança
+            marcao = createSprite(MAIN_CHARS.marcao, -12, 2.5, -6, 6); 
+            scene.add(marcao);
+            
+            // Hostess
+            hostess = createSprite(MAIN_CHARS.hostess, -8, 2, 6, 5); 
+            scene.add(hostess);
 
+            // --- FILA ORGANIZADA E PRÓXIMA ---
+            // Agora começa em Z = -8 (perto do Marcão) e vai para trás
             for(let i=0; i<8; i++) {
                 let randomImg = NPC_GALLERY[Math.floor(Math.random() * NPC_GALLERY.length)];
-                let npc = createSprite(randomImg, -16, 2, -15 - (i * 3), 4);
-                npc.material.color.setHex(0xaaaaaa); scene.add(npc);
+                // x fixo em -14 (parede), z espaçado
+                let npc = createSprite(randomImg, -14, 2, -8 - (i * 2.5), 4);
+                npc.material.color.setHex(0xaaaaaa); // Um pouco escurecido
+                scene.add(npc);
             }
 
+            // Balada (Pista)
             for(let i=0; i<25; i++) { 
                 let randomImg = NPC_GALLERY[Math.floor(Math.random() * NPC_GALLERY.length)];
                 let isMan = randomImg.toLowerCase().includes('h');
@@ -214,69 +242,49 @@
             rival.material.color.setHex(0xaaffaa); scene.add(rival);
 
             initJoystick();
-            initCameraControls(); // Iniciar controles de câmera
+            initCameraControls(); 
             animate();
         }
 
-        // --- CONTROLES DE CÂMERA (TOUCH E MOUSE) ---
+        // --- CONTROLES DE CÂMERA ---
         function initCameraControls() {
-            // Mouse
             document.addEventListener('mousedown', onPointerDown);
             document.addEventListener('mousemove', onPointerMove);
             document.addEventListener('mouseup', onPointerUp);
-            // Touch
             document.addEventListener('touchstart', onPointerDown, {passive: false});
             document.addEventListener('touchmove', onPointerMove, {passive: false});
             document.addEventListener('touchend', onPointerUp);
         }
-
         function onPointerDown(e) {
-            // Ignorar se tocar no Joystick ou Botão
             if (e.target.id === 'action-btn' || e.target.closest('#joystick-zone')) return;
-            
             isDragging = true;
             previousMouseX = e.clientX || e.touches[0].clientX;
         }
-
         function onPointerMove(e) {
             if (!isDragging) return;
-            
             const clientX = e.clientX || e.touches[0].clientX;
             const deltaX = clientX - previousMouseX;
-            
-            // Ajustar velocidade da rotação
             cameraAngle -= deltaX * 0.005; 
-            
             previousMouseX = clientX;
         }
+        function onPointerUp() { isDragging = false; }
 
-        function onPointerUp() {
-            isDragging = false;
-        }
-
-        // --- JOYSTICK COM ROTAÇÃO RELATIVA ---
+        // --- JOYSTICK (CORRIGIDO) ---
         function initJoystick() {
             joystickManager = nipplejs.create({
                 zone: document.getElementById('joystick-zone'),
                 mode: 'static', position: { left: '50%', top: '50%' }, color: 'white'
             });
             joystickManager.on('move', (evt, data) => {
-                // Joystick Puro (Cima é 90 graus / PI/2)
-                // Precisamos converter para coordenada normal (Cima = -1 no Z)
                 const joyAngle = data.angle.radian;
-                
-                // Salvar input cru para aplicar a rotação da câmera depois
-                // No joystick nipplejs: 0 é direita, PI/2 é cima.
-                // Threejs: Z+ é sul, X+ é direita.
-                
-                // Mapear Joystick para Forward/Side locais
+                // CORREÇÃO: "Up" no joystick deve ser positivo para mover para frente (lógica invertida da V6)
                 moveSide = Math.cos(joyAngle); 
-                moveForward = -Math.sin(joyAngle); 
+                moveForward = Math.sin(joyAngle); // Removi o negativo aqui
             });
             joystickManager.on('end', () => { moveForward = 0; moveSide = 0; });
         }
 
-        // ... [FUNCÕES DE CRIAÇÃO DE CENÁRIO IGUAIS AO ANTERIOR - MANTIDAS] ...
+        // ... [CENÁRIO - MANTIDO IGUAL] ...
         function createDiscoLights() {
             const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00];
             for(let i=0; i<4; i++) {
@@ -371,30 +379,16 @@
         };
 
         function updateGameLogic() {
-            // CALCULAR MOVIMENTO RELATIVO À CÂMERA
-            // O Joystick dá Frente/Lado. Precisamos rotacionar isso baseado no CameraAngle.
-            // Formula de rotação 2D:
-            // x' = x cos θ - y sin θ
-            // y' = x sin θ + y cos θ
-            
-            // Mas cuidado: CameraAngle é onde a câmera ESTÁ, não para onde ela OLHA.
-            // Para onde ela OLHA é CameraAngle + PI.
-            
-            // Simplificando:
-            // Se eu aperto W (moveForward), quero ir na direção que a camera aponta.
-            
-            // Vetor Direção da Câmera (projetado no chão XZ)
-            const camDirX = -Math.sin(cameraAngle); // X
-            const camDirZ = -Math.cos(cameraAngle); // Z
-            
-            // Vetor Direita da Câmera
+            // MOVIMENTO RELATIVO À CÂMERA
+            const camDirX = -Math.sin(cameraAngle); 
+            const camDirZ = -Math.cos(cameraAngle); 
             const camRightX = -Math.cos(cameraAngle);
             const camRightZ = Math.sin(cameraAngle);
             
-            // Aplicar movimento
             const speed = 0.25;
             
-            // Combinar Vetores
+            // Invertemos a lógica do "moveForward" no joystick, agora aqui deve funcionar normal
+            // "Frente" no joystick = Valor Positivo = Anda na direção da câmera
             const finalMoveX = (camDirX * moveForward + camRightX * moveSide) * speed;
             const finalMoveZ = (camDirZ * moveForward + camRightZ * moveSide) * speed;
 
@@ -466,14 +460,12 @@
             requestAnimationFrame(animate);
             updateGameLogic();
             
-            // --- CÁLCULO DA POSIÇÃO DA CÂMERA ---
-            // A câmera orbita em torno da Nicolle baseado no cameraAngle
             const offsetX = Math.sin(cameraAngle) * cameraDistance;
             const offsetZ = Math.cos(cameraAngle) * cameraDistance;
 
             camera.position.x = nicolle.position.x + offsetX;
             camera.position.z = nicolle.position.z + offsetZ;
-            camera.position.y = nicolle.position.y + cameraHeight; // Altura fixa relativa
+            camera.position.y = nicolle.position.y + cameraHeight; 
             
             camera.lookAt(nicolle.position);
             
