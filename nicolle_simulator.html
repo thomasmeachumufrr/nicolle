@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Nicolle Dias Simulator - Lucky Scope V8</title>
+    <title>Nicolle Dias Simulator - Lucky Scope V9 (Falante)</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; touch-action: none; background: #000; }
         
@@ -120,7 +120,16 @@
             'npc1h.png', 'npc2h.png', 'npc3.png', 'npc4m.png', 'npc5h.png',
             'npc6m.png', 'npc7h.png', 'npc8h.png', 'npc9h.png', 'npc10h.png',
             'npc11m.png', 'npc12m.png', 'npc13.png', 'npc14m.png', 'npc15h.png',
-            'npc16h.png', 'npc17h.png', 'npc18h.png', 'npc20h.png', 'npc21h.png', 'npc22h.png'
+            'npc16h.png', 'npc17h.png', 'npc18h.png', 'npc20h.png', 'npc21h.png', 'npc22h.png', 'npc23h.png', 'npc24h.png', 'npc25h.png'
+        ];
+
+        // FRASES ALEATÓRIAS
+        const PHRASES = [
+            "After no cassiano?",
+            "Alguém tem tabaco?",
+            "Vem sempre aqui amor?",
+            "Tá tarde já, to indo embora",
+            "Saudade da minha ex"
         ];
 
         let scene, camera, renderer;
@@ -154,7 +163,7 @@
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x020202);
-            scene.fog = new THREE.Fog(0x020202, 10, 90);
+            scene.fog = new THREE.Fog(0x020202, 10, 120); // Nevoeiro um pouco mais longe
 
             camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
 
@@ -164,27 +173,23 @@
             document.body.appendChild(renderer.domElement);
 
             // --- ILUMINAÇÃO ---
-            // Aumentei a luz ambiente geral
             const ambient = new THREE.AmbientLight(0x606060); 
             scene.add(ambient);
             
-            // Luz Interna Principal (Balada) - Guardei numa variável para animar
             mainDiscoLight = new THREE.PointLight(0xff00de, 1.0, 70);
             mainDiscoLight.position.set(20, 20, 0); 
             scene.add(mainDiscoLight);
 
-            // NOVO: Luz Externa FORTE (Holofote da Rua)
-            const outsideLight = new THREE.DirectionalLight(0xffedcc, 1.5); // Cor meio amarelada
-            outsideLight.position.set(-30, 50, -20); // Alto e a esquerda
-            outsideLight.target.position.set(-10, 0, -10); // Aponta pra fila
+            const outsideLight = new THREE.DirectionalLight(0xffedcc, 1.5); 
+            outsideLight.position.set(-30, 50, -20); 
+            outsideLight.target.position.set(-10, 0, -10); 
             outsideLight.castShadow = true;
             scene.add(outsideLight);
             scene.add(outsideLight.target);
 
-            // Luzes Móveis e Piscantes
             createDiscoLights();
 
-            // Cenário
+            // Cenário (Novo Piso)
             createEnvironment();
             createSignage(); 
             createDJBooth(); 
@@ -203,8 +208,8 @@
             for(let i=0; i<8; i++) {
                 let randomImg = NPC_GALLERY[Math.floor(Math.random() * NPC_GALLERY.length)];
                 let npc = createSprite(randomImg, -14, 2, -8 - (i * 2.5), 4);
-                // Removi o tint escuro para eles ficarem claros com a nova luz
-                // npc.material.color.setHex(0xaaaaaa); 
+                npc.userData.isTalking = false; // Estado para fala
+                npcs.push(npc); // Adiciona fila na lista de NPCs que podem falar
                 scene.add(npc);
             }
 
@@ -213,11 +218,13 @@
                 let randomImg = NPC_GALLERY[Math.floor(Math.random() * NPC_GALLERY.length)];
                 let isMan = randomImg.toLowerCase().includes('h');
                 let npc = createSprite(randomImg, 10 + Math.random()*50, 2, -30 + Math.random()*60, 4.5);
+                npc.userData.isTalking = false;
+
                 if (!isMan) {
-                    npc.userData = { type: 'woman_fight', interacted: false };
+                    npc.userData.type = 'woman_fight';
                 } else {
                     let hasDrink = Math.random() > 0.4;
-                    npc.userData = { type: hasDrink ? 'man_drink' : 'man', interacted: false };
+                    npc.userData.type = hasDrink ? 'man_drink' : 'man';
                     if(hasDrink) {
                         let cup = createSprite(MAIN_CHARS.drink_icon, 0.5, -0.1, 0.1, 0.4); 
                         npc.add(cup);
@@ -237,9 +244,79 @@
             rival.material.color.setHex(0xaaffaa); scene.add(rival);
 
             initJoystick();
-            initCameraControls(); 
+            initCameraControls();
+            startRandomSpeechLoop(); // Iniciar sistema de falas
             animate();
         }
+
+        // --- SISTEMA DE BALÕES DE FALA ---
+        function startRandomSpeechLoop() {
+            // Tenta fazer alguém falar a cada 2 segundos
+            setInterval(() => {
+                // Sorteia um NPC da lista
+                if (npcs.length === 0) return;
+                let speaker = npcs[Math.floor(Math.random() * npcs.length)];
+                
+                // Se ele já não estiver falando
+                if (speaker && !speaker.userData.isTalking) {
+                    let phrase = PHRASES[Math.floor(Math.random() * PHRASES.length)];
+                    speak(speaker, phrase);
+                }
+            }, 2000);
+        }
+
+        function speak(npc, text) {
+            npc.userData.isTalking = true;
+
+            // Criar textura de texto usando Canvas 2D
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 256; canvas.height = 128;
+            
+            // Fundo do balão (Retângulo branco arredondado simples)
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(10, 10, 236, 108);
+            ctx.strokeStyle = '#000000'; ctx.lineWidth = 4;
+            ctx.strokeRect(10, 10, 236, 108);
+            
+            // Texto
+            ctx.font = 'bold 24px Arial';
+            ctx.fillStyle = '#000000';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            // Quebra de linha simples (separa por espaço e desenha em duas linhas se precisar)
+            const words = text.split(' ');
+            let line1 = text; let line2 = "";
+            if(words.length > 3) {
+                const mid = Math.ceil(words.length / 2);
+                line1 = words.slice(0, mid).join(' ');
+                line2 = words.slice(mid).join(' ');
+            }
+
+            if(line2) {
+                ctx.fillText(line1, 128, 50);
+                ctx.fillText(line2, 128, 80);
+            } else {
+                ctx.fillText(text, 128, 64);
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const bubbleMat = new THREE.SpriteMaterial({ map: texture });
+            const bubble = new THREE.Sprite(bubbleMat);
+            
+            // Posicionar acima da cabeça do NPC
+            bubble.position.set(0, 2.5, 0); 
+            bubble.scale.set(4, 2, 1); // Tamanho do balão
+            
+            npc.add(bubble); // Adiciona o balão como "filho" do NPC
+
+            // Remover após 4 segundos
+            setTimeout(() => {
+                npc.remove(bubble);
+                npc.userData.isTalking = false;
+            }, 4000);
+        }
+
 
         // --- CONTROLES DE CÂMERA ---
         function initCameraControls() {
@@ -264,7 +341,7 @@
         }
         function onPointerUp() { isDragging = false; }
 
-        // --- JOYSTICK (CORRIGIDO HORIZONTALMENTE) ---
+        // --- JOYSTICK ---
         function initJoystick() {
             joystickManager = nipplejs.create({
                 zone: document.getElementById('joystick-zone'),
@@ -272,18 +349,16 @@
             });
             joystickManager.on('move', (evt, data) => {
                 const joyAngle = data.angle.radian;
-                // CORREÇÃO HORIZONTAL: Inverti o cosseno (adicionei o negativo)
                 moveSide = -Math.cos(joyAngle); 
                 moveForward = Math.sin(joyAngle);
             });
             joystickManager.on('end', () => { moveForward = 0; moveSide = 0; });
         }
 
-        // ... [CENÁRIO - MANTIDO IGUAL] ...
+        // ... [CENÁRIO ATUALIZADO] ...
         function createDiscoLights() {
             const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00];
             for(let i=0; i<4; i++) {
-                // Aumentei a intensidade base para o efeito de piscar ficar melhor
                 const light = new THREE.SpotLight(colors[i], 3);
                 light.position.set(30, 25, 0); 
                 light.angle = Math.PI / 6; light.penumbra = 0.5; light.distance = 80;
@@ -338,9 +413,37 @@
             const sign = new THREE.Mesh(new THREE.PlaneGeometry(14, 7), new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide }));
             sign.position.set(-11.5, 10, 0); sign.rotation.y = -Math.PI / 2; scene.add(sign);
         }
+
+        // --- FUNÇÃO CREATE ENVIRONMENT ATUALIZADA (PISOS) ---
         function createEnvironment() {
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(160, 100), new THREE.MeshStandardMaterial({ color: 0x662266, roughness: 0.1 }));
-            floor.rotation.x = -Math.PI/2; floor.position.x = 20; scene.add(floor);
+            // 1. Asfalto (Escuro, cobre tudo lá fora)
+            const asphalt = new THREE.Mesh(
+                new THREE.PlaneGeometry(200, 200), 
+                new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 })
+            );
+            asphalt.rotation.x = -Math.PI/2;
+            asphalt.position.y = -0.05; // Ligeiramente abaixo da calçada
+            scene.add(asphalt);
+
+            // 2. Calçada (Concreto mais claro, área da fila)
+            const sidewalk = new THREE.Mesh(
+                new THREE.PlaneGeometry(30, 60), 
+                new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.6 })
+            );
+            sidewalk.rotation.x = -Math.PI/2;
+            sidewalk.position.set(-20, 0, 0); // Posicionada na frente da entrada
+            scene.add(sidewalk);
+
+            // 3. Piso Interno (Pista de dança, mais escuro e reflexivo)
+            const clubFloor = new THREE.Mesh(
+                new THREE.PlaneGeometry(100, 100), 
+                new THREE.MeshStandardMaterial({ color: 0x220022, roughness: 0.1, metalness: 0.2 })
+            );
+            clubFloor.rotation.x = -Math.PI/2;
+            clubFloor.position.set(40, 0.01, 0); // Ligeiramente acima do asfalto
+            scene.add(clubFloor);
+
+            // Paredes
             const wallMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
             const wallEntry = new THREE.Mesh(new THREE.BoxGeometry(2, 12, 100), wallMat); wallEntry.position.set(-10, 6, 0); scene.add(wallEntry);
             const wallBack = new THREE.Mesh(new THREE.BoxGeometry(2, 12, 100), wallMat); wallBack.position.set(75, 6, 0); scene.add(wallBack);
@@ -375,7 +478,6 @@
         };
 
         function updateGameLogic() {
-            // MOVIMENTO RELATIVO À CÂMERA
             const camDirX = -Math.sin(cameraAngle); 
             const camDirZ = -Math.cos(cameraAngle); 
             const camRightX = -Math.cos(cameraAngle);
@@ -393,23 +495,12 @@
                 nicolle.position.x = -8.2; dialogBox.style.display = 'block'; moveForward = 0; moveSide = 0; 
             }
 
-            // --- ANIMAÇÃO DAS LUZES ---
             const time = Date.now() * 0.001;
-            
-            // Luz Principal Pulsante
             mainDiscoLight.intensity = 0.8 + Math.sin(time * 2) * 0.4;
-
-            // Canhões de Luz (Movimento + Piscar)
             discoLights.forEach(dl => {
                 dl.target.position.x = 30 + Math.cos(time * dl.speed + dl.offset) * 30;
                 dl.target.position.z = Math.sin(time * dl.speed + dl.offset) * 40;
-                
-                // Efeito Strobe Aleatório
-                if(Math.random() > 0.92) {
-                    dl.light.intensity = 5; // Piscar forte
-                } else {
-                    dl.light.intensity = 1; // Normal
-                }
+                if(Math.random() > 0.92) dl.light.intensity = 5; else dl.light.intensity = 1;
             });
 
             btnAction.style.display = 'none';
