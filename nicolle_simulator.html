@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Nicolle Dias Simulator - Lucky Scope Final</title>
+    <title>Nicolle Dias Simulator - Câmera Livre</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; touch-action: none; background: #000; }
         
@@ -42,7 +42,6 @@
             cursor: pointer; border-radius: 5px;
             font-weight: bold;
         }
-        .dialog-btn:hover { background: #fff; color: #ff00de; }
 
         /* Notificação do PIX */
         #pix-alert {
@@ -73,6 +72,10 @@
             box-shadow: 0 0 20px #ff00de;
         }
         #joystick-zone { position: absolute; bottom: 50px; left: 50px; width: 150px; height: 150px; z-index: 20; }
+        
+        #camera-hint {
+            position: absolute; top: 10px; right: 10px; color: #aaa; font-size: 12px; pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -83,6 +86,8 @@
             <h2 id="mission-desc">Vá até a porta e fale com a Hostess.</h2>
         </div>
     </div>
+    
+    <div id="camera-hint">👋 Arraste na tela para girar a câmera</div>
 
     <div id="door-dialog">
         <h3 style="margin-top:0">Hostess diz:</h3>
@@ -100,26 +105,23 @@
     <script type="module">
         import * as THREE from 'https://unpkg.com/three@0.126.0/build/three.module.js';
 
-        // ================= CONFIGURAÇÃO DE IMAGENS =================
-        // Baseado no seu print da pasta
+        // ================= CONFIGURAÇÃO =================
         const MAIN_CHARS = {
             nicolle: 'nicolle.png', 
             marcao: 'jeffao.png', 
             hostess: 'hostess.png', 
-            keyla: 'keyla.png', // Ajustado conforme print
+            keyla: 'keyla.png',
             japa: 'japa.png',
-            rival: 'npc12m.png', // Usando uma das mulheres como rival padrão
+            rival: 'npc12m.png',
             drink_icon: 'drink.png'
         };
 
-        // LISTA EXATA DOS ARQUIVOS DO SEU PRINT
         const NPC_GALLERY = [
             'npc1h.png', 'npc2h.png', 'npc3.png', 'npc4m.png', 'npc5h.png',
             'npc6m.png', 'npc7h.png', 'npc8h.png', 'npc9h.png', 'npc10h.png',
             'npc11m.png', 'npc12m.png', 'npc13.png', 'npc14m.png', 'npc15h.png',
             'npc16h.png', 'npc17h.png', 'npc18h.png', 'npc20h.png', 'npc21h.png', 'npc22h.png'
         ];
-        // ===========================================================
 
         let scene, camera, renderer;
         let nicolle, hostess, marcao;
@@ -134,6 +136,13 @@
         let discoLights = []; 
         const textureLoader = new THREE.TextureLoader();
 
+        // --- VARIÁVEIS DE CÂMERA ---
+        let cameraAngle = Math.PI; // Começa olhando de frente (Norte)
+        let cameraDistance = 25;
+        let cameraHeight = 15;
+        let isDragging = false;
+        let previousMouseX = 0;
+
         // Elementos UI
         const uiTitle = document.getElementById('mission-title');
         const uiDesc = document.getElementById('mission-desc');
@@ -147,108 +156,134 @@
             scene.fog = new THREE.Fog(0x050505, 10, 90);
 
             camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 15, 25); 
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true; 
             document.body.appendChild(renderer.domElement);
 
-            // --- LUZES ---
-            const ambient = new THREE.AmbientLight(0x404040); 
-            scene.add(ambient);
+            // Luzes
+            const ambient = new THREE.AmbientLight(0x404040); scene.add(ambient);
             const mainLight = new THREE.PointLight(0xff00de, 0.8, 60);
-            mainLight.position.set(20, 20, 0);
-            scene.add(mainLight);
+            mainLight.position.set(20, 20, 0); scene.add(mainLight);
             createDiscoLights();
 
-            // --- CENÁRIO ---
+            // Cenário
             createEnvironment();
             createSignage(); 
             createDJBooth(); 
             createBarArea(); 
             createRestroomArea(); 
 
-            // --- PERSONAGENS ---
-            
-            // Nicolle
-            nicolle = createSprite(MAIN_CHARS.nicolle, -40, 2, 0, 5);
-            scene.add(nicolle);
+            // Personagens
+            nicolle = createSprite(MAIN_CHARS.nicolle, -40, 2, 0, 5); scene.add(nicolle);
+            marcao = createSprite(MAIN_CHARS.marcao, -12, 2.5, -6, 6); scene.add(marcao);
+            hostess = createSprite(MAIN_CHARS.hostess, -8, 2, 6, 5); scene.add(hostess);
 
-            // Marcão e Hostess
-            marcao = createSprite(MAIN_CHARS.marcao, -12, 2.5, -6, 6);
-            scene.add(marcao);
-            hostess = createSprite(MAIN_CHARS.hostess, -8, 2, 6, 5);
-            scene.add(hostess);
-
-            // Fila Organizada
             for(let i=0; i<8; i++) {
                 let randomImg = NPC_GALLERY[Math.floor(Math.random() * NPC_GALLERY.length)];
                 let npc = createSprite(randomImg, -16, 2, -15 - (i * 3), 4);
-                npc.material.color.setHex(0xaaaaaa); 
-                scene.add(npc);
+                npc.material.color.setHex(0xaaaaaa); scene.add(npc);
             }
 
-            // Balada (Pista) - LÓGICA DE SEXO PELO NOME
             for(let i=0; i<25; i++) { 
                 let randomImg = NPC_GALLERY[Math.floor(Math.random() * NPC_GALLERY.length)];
-                
-                // DETECÇÃO DE GÊNERO: Se tem 'h' no nome é homem, caso contrário mulher
                 let isMan = randomImg.toLowerCase().includes('h');
-                
                 let npc = createSprite(randomImg, 10 + Math.random()*50, 2, -30 + Math.random()*60, 4.5);
-                
                 if (!isMan) {
-                    // É mulher -> Alvo de briga
                     npc.userData = { type: 'woman_fight', interacted: false };
                 } else {
-                    // É homem -> Pode ter drink
                     let hasDrink = Math.random() > 0.4;
                     npc.userData = { type: hasDrink ? 'man_drink' : 'man', interacted: false };
-                    
                     if(hasDrink) {
-                        // CORREÇÃO VISUAL: Drink mais alto (y = -0.1) e um pouco à frente (z = 0.1)
                         let cup = createSprite(MAIN_CHARS.drink_icon, 0.5, -0.1, 0.1, 0.4); 
                         npc.add(cup);
                     }
                 }
-                npcs.push(npc);
-                scene.add(npc);
+                npcs.push(npc); scene.add(npc);
             }
 
-            // Personagens Fixos
             keyla = createSprite(MAIN_CHARS.keyla, 55, 2, -35, 5);
-            keyla.userData = { type: 'keyla' };
-            keyla.material.color.setHex(0xffaaaa); // Tint vermelho leve
-            npcs.push(keyla);
-            scene.add(keyla);
+            keyla.userData = { type: 'keyla' }; keyla.material.color.setHex(0xffaaaa);
+            npcs.push(keyla); scene.add(keyla);
 
             japa = createSprite(MAIN_CHARS.japa, 60, 2, 0, 5);
-            japa.userData = { type: 'japa' };
-            npcs.push(japa);
-            scene.add(japa);
+            japa.userData = { type: 'japa' }; npcs.push(japa); scene.add(japa);
 
             rival = createSprite(MAIN_CHARS.rival, 62, 2, 0, 4.5);
-            rival.material.color.setHex(0xaaffaa); // Tint verde leve
-            scene.add(rival);
+            rival.material.color.setHex(0xaaffaa); scene.add(rival);
 
             initJoystick();
+            initCameraControls(); // Iniciar controles de câmera
             animate();
         }
 
-        // --- CONSTRUÇÃO DO CENÁRIO ---
+        // --- CONTROLES DE CÂMERA (TOUCH E MOUSE) ---
+        function initCameraControls() {
+            // Mouse
+            document.addEventListener('mousedown', onPointerDown);
+            document.addEventListener('mousemove', onPointerMove);
+            document.addEventListener('mouseup', onPointerUp);
+            // Touch
+            document.addEventListener('touchstart', onPointerDown, {passive: false});
+            document.addEventListener('touchmove', onPointerMove, {passive: false});
+            document.addEventListener('touchend', onPointerUp);
+        }
+
+        function onPointerDown(e) {
+            // Ignorar se tocar no Joystick ou Botão
+            if (e.target.id === 'action-btn' || e.target.closest('#joystick-zone')) return;
+            
+            isDragging = true;
+            previousMouseX = e.clientX || e.touches[0].clientX;
+        }
+
+        function onPointerMove(e) {
+            if (!isDragging) return;
+            
+            const clientX = e.clientX || e.touches[0].clientX;
+            const deltaX = clientX - previousMouseX;
+            
+            // Ajustar velocidade da rotação
+            cameraAngle -= deltaX * 0.005; 
+            
+            previousMouseX = clientX;
+        }
+
+        function onPointerUp() {
+            isDragging = false;
+        }
+
+        // --- JOYSTICK COM ROTAÇÃO RELATIVA ---
+        function initJoystick() {
+            joystickManager = nipplejs.create({
+                zone: document.getElementById('joystick-zone'),
+                mode: 'static', position: { left: '50%', top: '50%' }, color: 'white'
+            });
+            joystickManager.on('move', (evt, data) => {
+                // Joystick Puro (Cima é 90 graus / PI/2)
+                // Precisamos converter para coordenada normal (Cima = -1 no Z)
+                const joyAngle = data.angle.radian;
+                
+                // Salvar input cru para aplicar a rotação da câmera depois
+                // No joystick nipplejs: 0 é direita, PI/2 é cima.
+                // Threejs: Z+ é sul, X+ é direita.
+                
+                // Mapear Joystick para Forward/Side locais
+                moveSide = Math.cos(joyAngle); 
+                moveForward = -Math.sin(joyAngle); 
+            });
+            joystickManager.on('end', () => { moveForward = 0; moveSide = 0; });
+        }
+
+        // ... [FUNCÕES DE CRIAÇÃO DE CENÁRIO IGUAIS AO ANTERIOR - MANTIDAS] ...
         function createDiscoLights() {
             const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00];
             for(let i=0; i<4; i++) {
                 const light = new THREE.SpotLight(colors[i], 2);
                 light.position.set(30, 25, 0); 
-                light.angle = Math.PI / 6;
-                light.penumbra = 0.5;
-                light.distance = 80;
-                const target = new THREE.Object3D();
-                scene.add(target);
-                light.target = target;
-                scene.add(light);
+                light.angle = Math.PI / 6; light.penumbra = 0.5; light.distance = 80;
+                const target = new THREE.Object3D(); scene.add(target); light.target = target; scene.add(light);
                 discoLights.push({ light: light, target: target, offset: i * 2, speed: 0.02 + (i*0.01) });
             }
         }
@@ -321,17 +356,6 @@
             sprite.scale.set(s,s,1);
             return sprite;
         }
-        function initJoystick() {
-            joystickManager = nipplejs.create({
-                zone: document.getElementById('joystick-zone'),
-                mode: 'static', position: { left: '50%', top: '50%' }, color: 'white'
-            });
-            joystickManager.on('move', (evt, data) => {
-                moveSide = Math.cos(data.angle.radian);
-                moveForward = -Math.sin(data.angle.radian);
-            });
-            joystickManager.on('end', () => { moveForward = 0; moveSide = 0; });
-        }
 
         // --- LÓGICA DO JOGO ---
         window.escolherEntrada = function(tipo) {
@@ -347,8 +371,35 @@
         };
 
         function updateGameLogic() {
-            nicolle.position.x += moveSide * 0.25; 
-            nicolle.position.z += moveForward * 0.25;
+            // CALCULAR MOVIMENTO RELATIVO À CÂMERA
+            // O Joystick dá Frente/Lado. Precisamos rotacionar isso baseado no CameraAngle.
+            // Formula de rotação 2D:
+            // x' = x cos θ - y sin θ
+            // y' = x sin θ + y cos θ
+            
+            // Mas cuidado: CameraAngle é onde a câmera ESTÁ, não para onde ela OLHA.
+            // Para onde ela OLHA é CameraAngle + PI.
+            
+            // Simplificando:
+            // Se eu aperto W (moveForward), quero ir na direção que a camera aponta.
+            
+            // Vetor Direção da Câmera (projetado no chão XZ)
+            const camDirX = -Math.sin(cameraAngle); // X
+            const camDirZ = -Math.cos(cameraAngle); // Z
+            
+            // Vetor Direita da Câmera
+            const camRightX = -Math.cos(cameraAngle);
+            const camRightZ = Math.sin(cameraAngle);
+            
+            // Aplicar movimento
+            const speed = 0.25;
+            
+            // Combinar Vetores
+            const finalMoveX = (camDirX * moveForward + camRightX * moveSide) * speed;
+            const finalMoveZ = (camDirZ * moveForward + camRightZ * moveSide) * speed;
+
+            nicolle.position.x += finalMoveX;
+            nicolle.position.z += finalMoveZ;
 
             if (!entryGranted && nicolle.position.x > -8) {
                 nicolle.position.x = -8.2; dialogBox.style.display = 'block'; moveForward = 0; moveSide = 0; 
@@ -414,9 +465,18 @@
         function animate() {
             requestAnimationFrame(animate);
             updateGameLogic();
-            camera.position.x = nicolle.position.x; 
-            camera.position.z = nicolle.position.z + 20;
-            camera.lookAt(nicolle.position.x, 0, nicolle.position.z);
+            
+            // --- CÁLCULO DA POSIÇÃO DA CÂMERA ---
+            // A câmera orbita em torno da Nicolle baseado no cameraAngle
+            const offsetX = Math.sin(cameraAngle) * cameraDistance;
+            const offsetZ = Math.cos(cameraAngle) * cameraDistance;
+
+            camera.position.x = nicolle.position.x + offsetX;
+            camera.position.z = nicolle.position.z + offsetZ;
+            camera.position.y = nicolle.position.y + cameraHeight; // Altura fixa relativa
+            
+            camera.lookAt(nicolle.position);
+            
             renderer.render(scene, camera);
         }
 
