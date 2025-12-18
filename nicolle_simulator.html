@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Nicolle Dias Simulator</title>
+    <title>Nicolle Dias Simulator - Lucky Scope V11</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; touch-action: none; background: #000; }
         
@@ -83,7 +83,7 @@
     <div id="ui-container">
         <div id="mission-box">
             <h1 id="mission-title">MISSÃO 1</h1>
-            <h2 id="mission-desc">Fure a fila e fale com a Hostess.</h2>
+            <h2 id="mission-desc">Vá até a porta e fale com a Hostess.</h2>
         </div>
     </div>
     
@@ -119,8 +119,8 @@
         const NPC_GALLERY = [
             'npc1h.png', 'npc2h.png', 'npc3.png', 'npc4m.png', 'npc5h.png',
             'npc6m.png', 'npc7h.png', 'npc8h.png', 'npc9h.png', 'npc10h.png',
-            'npc11m.png', 'npc13.png', 'npc14m.png', 'npc15h.png',
-            'npc16h.png', 'npc17h.png', 'npc18h.png', 'npc20h.png', 'npc21h.png', 'npc22h.png', 'npc23h.png', 'npc24h.png', 'npc25h.png'
+            'npc11m.png', 'npc12m.png', 'npc13.png', 'npc14m.png', 'npc15h.png',
+            'npc16h.png', 'npc17h.png', 'npc18h.png', 'npc20h.png', 'npc21h.png', 'npc22h.png'
         ];
 
         // FRASES ALEATÓRIAS
@@ -130,10 +130,6 @@
             "Vem sempre aqui amor?",
             "Tá tarde já, to indo embora",
             "Saudade da minha ex"
-            "Alguém viu o marcão?"
-            "Me paga um drink ai vai"
-            "Nossa que calor"
-            "Bola mais um ai"
         ];
 
         let scene, camera, renderer;
@@ -253,9 +249,8 @@
             animate();
         }
 
-        // --- SISTEMA DE BALÕES DE FALA (AJUSTADO) ---
+        // --- SISTEMA DE BALÕES DE FALA ---
         function startRandomSpeechLoop() {
-            // Frequência reduzida: agora tenta falar a cada 8 segundos (8000ms)
             setInterval(() => {
                 if (npcs.length === 0) return;
                 let speaker = npcs[Math.floor(Math.random() * npcs.length)];
@@ -274,13 +269,11 @@
             const ctx = canvas.getContext('2d');
             canvas.width = 256; canvas.height = 128;
             
-            // Desenho do balão
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(10, 10, 236, 108);
             ctx.strokeStyle = '#000000'; ctx.lineWidth = 4;
             ctx.strokeRect(10, 10, 236, 108);
             
-            // Texto
             ctx.font = 'bold 24px Arial';
             ctx.fillStyle = '#000000';
             ctx.textAlign = 'center';
@@ -305,9 +298,9 @@
             const bubbleMat = new THREE.SpriteMaterial({ map: texture });
             const bubble = new THREE.Sprite(bubbleMat);
             
-            // TAMANHO REDUZIDO (Era 4, 2, 1 -> Agora 1.5, 0.75, 1)
-            bubble.position.set(0, 1.0, 0); 
-            bubble.scale.set(1.4, 0.75, 1); 
+            // POSIÇÃO Y AJUSTADA (Era 2.5 -> Agora 1.8)
+            bubble.position.set(0, 1.8, 0); 
+            bubble.scale.set(1.5, 0.75, 1); 
             
             npc.add(bubble); 
 
